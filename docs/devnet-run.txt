@@ -1,0 +1,25 @@
+koinos-pq devnet run 2026-10-17T21:44:02.007Z
+node up: head height 4, chain id EiCeM8UDPNRlja-VqfSh9dxqP1owrH0tIrhxJhrvL4fEQA==
+KOIN already deployed at 1BRmrUgtSQVUggoeE9weG4f7nidyydnYfQ
+post-quantum address 1PdGp8MVfNRCQYQ6w5jNHBpZ3LsKG6MQW4 (ML-DSA-44 key, sha256 c5ff2b8a5314f3f8…); secp256k1 account 1DGUf9QXa9a9PXipoD82ftWKW5dCsit8F1
+minted 1000 KOIN to 1DGUf9QXa9a9PXipoD82ftWKW5dCsit8F1 (block 5)
+balances: pq 999.00000000 KOIN, secp 1000.00000000 KOIN, sink 1.00000000 KOIN
+3. transfer from the post-quantum address, signed only with a 3733-byte ML-DSA-44 entry
+  native 0x01||pk||sig (3733 B): tx 0x122058e924f4fed3… MINED in block 6; rc_used 547723; compute 527828; network 3979 B; reverted false
+  sink balance 1.00000000 KOIN -> 2.00000000 KOIN
+4. negative cases (each must be rejected by the node)
+  flipped signature bit: rejected as expected ({"error":"account 1PdGp8MVfNRCQYQ6w5jNHBpZ3LsKG6MQW4 has not authorized transaction","account":"1PdGp8MVfNRCQYQ6w5jNHBpZ3LsKG6MQW4","code":-)
+  signed with the account contract's context koinos/pqwallet/1: rejected as expected ({"error":"account 1PdGp8MVfNRCQYQ6w5jNHBpZ3LsKG6MQW4 has not authorized transaction","account":"1PdGp8MVfNRCQYQ6w5jNHBpZ3LsKG6MQW4","code":-)
+  tag 0x02 instead of 0x01: rejected as expected ({"error":"unexpected signature length","code":-202,"logs":[]})
+  3732 bytes: rejected as expected ({"error":"unexpected signature length","code":-202,"logs":[]})
+  valid entry from a different ML-DSA key: rejected as expected ({"error":"account 1PdGp8MVfNRCQYQ6w5jNHBpZ3LsKG6MQW4 has not authorized transaction","account":"1PdGp8MVfNRCQYQ6w5jNHBpZ3LsKG6MQW4","code":-)
+  65-byte secp256k1 signature for the post-quantum address: rejected as expected ({"error":"account 1PdGp8MVfNRCQYQ6w5jNHBpZ3LsKG6MQW4 has not authorized transaction","account":"1PdGp8MVfNRCQYQ6w5jNHBpZ3LsKG6MQW4","code":-)
+  no signature: rejected as expected ({"error":"missing expected field in transaction: signature_data","code":-1002,"field":"signature_data","transaction_id":"0x12200147ea33ac220)
+5. secp256k1 path unchanged, and a transaction carrying both kinds
+  plain secp256k1 transfer (65 B): tx 0x12209683d076dcd4… MINED in block 7; rc_used 411193; compute 409273; network 310 B; reverted false
+  mixed: secp256k1 + ML-DSA-44 entries, two accounts: tx 0x12201404e790757e… MINED in block 8; rc_used 943313; compute 922593; network 4144 B; reverted false
+  sink balance 3.00000000 KOIN -> 5.00000000 KOIN
+  mixed operations with only the secp256k1 signature: rejected as expected ({"error":"account 1PdGp8MVfNRCQYQ6w5jNHBpZ3LsKG6MQW4 has not authorized transaction","account":"1PdGp8MVfNRCQYQ6w5jNHBpZ3LsKG6MQW4","code":-)
+final balances: pq 997.00000000 KOIN, secp 998.00000000 KOIN, sink 5.00000000 KOIN
+cost: native transfer compute 527828 ticks / 3979 B; secp256k1 transfer compute 409273 ticks / 310 B; difference 118555 ticks, 3669 B
+ALL DEVNET CHECKS PASSED

@@ -1,0 +1,15 @@
+global:
+  amqp: amqp://guest:guest@amqp:5672/
+  log-level: info
+  log-color: false
+  log-datetime: true
+  log-dir: logs
+  instance-id: koinos-pq-devnet
+  fork-algorithm: fifo                 # no proof-of-burn contract on this chain
+
+chain:
+  disable-pending-transaction-limit: true
+  system-call-buffer-size: 64000
+
+jsonrpc:
+  listen: /tcp/8080
