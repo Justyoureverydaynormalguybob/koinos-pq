@@ -3,15 +3,11 @@
 // The upload itself is still authorised by the account's secp256k1 key (upload authority not
 // yet overridden), so the transaction carries two signatures: payer's and the account's.
 // Usage: FUND_WIF=<payer wif> node cli/rescue-upload.mjs   (defaults to the koinky-kit issuer key)
-import { readFileSync, existsSync } from "node:fs";
-import { network, loadKeys, saveKeys, wasmPath, loadAbi, Signer, Transaction, utils, waitMined, submit } from "./lib.mjs";
+import { network, loadKeys, saveKeys, loadBytecode, loadAbi, Signer, Transaction, utils, waitMined, submit, fundingWif } from "./lib.mjs";
 
 const net = network();
 const k = loadKeys(net.name);
-let wif = process.env.FUND_WIF;
-if (!wif) { const f = `${process.env.HOME}/koinky-kit/.keys.${net.name}.json`; if (existsSync(f)) wif = JSON.parse(readFileSync(f, "utf8")).issuer.wif; }
-if (!wif) { console.error("set FUND_WIF"); process.exit(1); }
-const payer = Signer.fromWif(wif); payer.provider = net.provider;
+const payer = Signer.fromWif(fundingWif(net)); payer.provider = net.provider;
 const account = Signer.fromWif(k.account.wif); account.provider = net.provider;
 const lock = process.argv.includes("--lock");
 const operation = { upload_contract: {

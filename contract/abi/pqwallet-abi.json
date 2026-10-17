@@ -3,7 +3,7 @@
         "set_public_key": {
             "input": "pqwallet.set_public_key_arguments",
             "output": "pqwallet.set_public_key_result",
-            "description": "Register (or rotate) the ML-DSA-44 public key (1312 bytes)",
+            "description": "Register (or rotate) the ML-DSA-44 public key (1312 bytes). `proof` is an",
             "entryPoint": 1288095259,
             "readOnly": false
         },
@@ -20,6 +20,20 @@
             "description": "Scheme name, sizes and status",
             "entryPoint": 3179243600,
             "readOnly": true
+        },
+        "set_allowed_caller": {
+            "input": "pqwallet.set_allowed_caller_arguments",
+            "output": "pqwallet.set_allowed_caller_result",
+            "description": "Allow or forbid a contract to exercise this account's authority from inside a",
+            "entryPoint": 1287194961,
+            "readOnly": false
+        },
+        "get_allowed_caller": {
+            "input": "pqwallet.get_allowed_caller_arguments",
+            "output": "pqwallet.get_allowed_caller_result",
+            "description": "Is this contract allowed to act for the account from a nested call?",
+            "entryPoint": 3026396941,
+            "readOnly": true
         }
     },
     "types": {
@@ -31,6 +45,10 @@
                             "publicKey": {
                                 "type": "bytes",
                                 "id": 1
+                            },
+                            "proof": {
+                                "type": "bytes",
+                                "id": 2
                             }
                         }
                     },
@@ -72,10 +90,43 @@
                             "keyRegistered": {
                                 "type": "bool",
                                 "id": 5
+                            }
+                        }
+                    },
+                    "set_allowed_caller_arguments": {
+                        "fields": {
+                            "contract": {
+                                "type": "bytes",
+                                "id": 1,
+                                "options": {
+                                    "(koinos.btype)": "CONTRACT_ID"
+                                }
                             },
-                            "verifications": {
-                                "type": "uint64",
-                                "id": 6
+                            "allowed": {
+                                "type": "bool",
+                                "id": 2
+                            }
+                        }
+                    },
+                    "set_allowed_caller_result": {
+                        "fields": {}
+                    },
+                    "get_allowed_caller_arguments": {
+                        "fields": {
+                            "contract": {
+                                "type": "bytes",
+                                "id": 1,
+                                "options": {
+                                    "(koinos.btype)": "CONTRACT_ID"
+                                }
+                            }
+                        }
+                    },
+                    "get_allowed_caller_result": {
+                        "fields": {
+                            "value": {
+                                "type": "bool",
+                                "id": 1
                             }
                         }
                     },
@@ -84,10 +135,36 @@
                             "publicKey": {
                                 "type": "bytes",
                                 "id": 1
+                            }
+                        }
+                    },
+                    "allowed_object": {
+                        "fields": {
+                            "value": {
+                                "type": "bool",
+                                "id": 1
+                            }
+                        }
+                    },
+                    "allowed_caller_event": {
+                        "fields": {
+                            "account": {
+                                "type": "bytes",
+                                "id": 1,
+                                "options": {
+                                    "(koinos.btype)": "ADDRESS"
+                                }
                             },
-                            "verifications": {
-                                "type": "uint64",
-                                "id": 2
+                            "contract": {
+                                "type": "bytes",
+                                "id": 2,
+                                "options": {
+                                    "(koinos.btype)": "CONTRACT_ID"
+                                }
+                            },
+                            "allowed": {
+                                "type": "bool",
+                                "id": 3
                             }
                         }
                     },

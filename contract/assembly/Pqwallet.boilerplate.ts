@@ -18,6 +18,7 @@ export class Pqwallet {
     args: pqwallet.set_public_key_arguments
   ): pqwallet.set_public_key_result {
     // const public_key = args.public_key;
+    // const proof = args.proof;
 
     // YOUR CODE HERE
 
@@ -46,7 +47,32 @@ export class Pqwallet {
     // res.signature_bytes = ;
     // res.context = ;
     // res.key_registered = ;
-    // res.verifications = ;
+
+    return res;
+  }
+
+  set_allowed_caller(
+    args: pqwallet.set_allowed_caller_arguments
+  ): pqwallet.set_allowed_caller_result {
+    // const contract = args.contract;
+    // const allowed = args.allowed;
+
+    // YOUR CODE HERE
+
+    const res = new pqwallet.set_allowed_caller_result();
+
+    return res;
+  }
+
+  get_allowed_caller(
+    args: pqwallet.get_allowed_caller_arguments
+  ): pqwallet.get_allowed_caller_result {
+    // const contract = args.contract;
+
+    // YOUR CODE HERE
+
+    const res = new pqwallet.get_allowed_caller_result();
+    // res.value = ;
 
     return res;
   }

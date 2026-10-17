@@ -10,15 +10,22 @@ Koinos's per-address `authorize` override. No chain change.
 and (after bootstrap) `authorizes_upload_contract = true`. ABI: `dist/pqwallet.abi`.
 
 ## State
-Space 0, object `config_object { bytes public_key = 1; uint64 verifications = 2; }`.
+Space 0, object `config_object { bytes public_key = 1; }`.
+Space 1, map contract address → `allowed_object { bool value = 1; }` (nested-call allow-list).
 
 ## Entry points
 | name | id | args | result | auth |
 |---|---|---|---|---|
 | `authorize` | `0x4a2dbd90` (reserved) | `koinos.chain.authorize_arguments` | `authorize_result{value}` | kernel only |
-| `set_public_key` | sha256("set_public_key")[0:4] | `{bytes public_key}` 1312 B | `{}` | rule below |
-| `get_public_key` | | `{}` | `{bytes value}` | read-only |
-| `get_info` | | `{}` | scheme, sizes, context, key_registered, verifications | read-only |
+| `set_public_key` | `0x4cc6c61b` | `{bytes public_key (1312), bytes proof (2420)}` | `{}` | direct op + rule below + proof |
+| `get_public_key` | `0x96634f68` | `{}` | `{bytes value}` | read-only |
+| `get_info` | `0xbd7f6850` | `{}` | scheme, sizes, context, key_registered | read-only |
+| `set_allowed_caller` | | `{bytes contract, bool allowed}` | `{}` | direct op + rule below |
+| `get_allowed_caller` | | `{bytes contract}` | `{bool value}` | read-only |
+
+"Direct op" means `System.getCaller().caller` is empty: the entry point was invoked by a
+transaction operation, not by another contract. `proof` is an ML-DSA-44 signature by the NEW key
+over the account's 25-byte address with context `koinos/pqwallet/1/pop` (proof of possession).
 
 ## The rule (`authorizedByTransaction`)
 Let `tx = get_transaction()`, `id = tx.id` (34-byte sha2-256 multihash), `pk = config.public_key`.
@@ -28,7 +35,13 @@ Let `tx = get_transaction()`, `id = tx.id` (34-byte sha2-256 multihash), `pk = c
 - Otherwise: authorised iff some `tx.signatures[i]` of length 2420 satisfies
   `ML-DSA-44.Verify(pk, M = id, sig, ctx = "koinos/pqwallet/1")` (pure mode, FIPS 204 §5.3 with
   the context prefix `0x00 || len(ctx) || ctx`). On success `verifications += 1`.
-All three authorization types use the same rule.
+`authorize` is pure (no state writes). For `transaction_application` and `contract_upload` the
+rule above decides. For `contract_call` the chain supplies `call = {contract_id, entry_point,
+caller, data}` where `contract_id` is the contract asking (e.g. the token) and `caller` is who
+called it: empty for a direct operation. If `caller` is non-empty and is not this account, the
+request is refused unless `caller` is in the allow-list; otherwise the rule above decides. This
+mirrors the AssemblyScript SDK's `checkAccountAuthority` for plain accounts, which refuses nested
+callers outright, while letting the holder opt specific contracts in.
 
 `set_public_key` requires the rule to pass and the new key to be 1312 bytes; emits
 `pqwallet.key_set { account, public_key_hash = sha2-256 multihash of the key }`.

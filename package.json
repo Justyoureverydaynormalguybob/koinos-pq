@@ -6,7 +6,7 @@
   "description": "Post-quantum (ML-DSA-44) account contract for Koinos, with testnet CLI",
   "scripts": {
     "build:wasm": "sh wasm/build.sh",
-    "test:wasm": "node wasm/test/verify.test.mjs",
+    "test:wasm": "node wasm/test/verify.test.mjs && node wasm/test/fuzz.test.mjs",
     "build:contract": "cd contract && sh scripts/build.sh release",
     "test:contract": "node contract/scripts/fixtures.mjs && cd contract && sh scripts/test.sh",
     "build": "npm run build:wasm && npm run build:contract",
@@ -17,7 +17,9 @@
     "deploy": "node cli/deploy.mjs",
     "register": "node cli/register.mjs",
     "send": "node cli/send.mjs",
-    "lock": "node cli/lock.mjs"
+    "lock": "node cli/lock.mjs",
+    "allow": "node cli/allow.mjs",
+    "rescue": "node cli/rescue-upload.mjs"
   },
   "license": "MIT",
   "dependencies": {

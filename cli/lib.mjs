@@ -19,6 +19,7 @@ export const NETWORKS = {
   },
 };
 export const CONTEXT = new TextEncoder().encode("koinos/pqwallet/1");
+export const CONTEXT_POP = new TextEncoder().encode("koinos/pqwallet/1/pop");
 export const PK_BYTES = 1312, SIG_BYTES = 2420;
 
 export function network(name = process.env.KOINOS_NETWORK || "testnet") {
@@ -41,7 +42,7 @@ export function loadKeys(net) {
 }
 export function saveKeys(net, obj) {
   const f = keyFile(net);
-  writeFileSync(f, JSON.stringify(obj, null, 2));
+  writeFileSync(f, JSON.stringify(obj, null, 2), { mode: 0o600 }); // created 0600, no window
   chmodSync(f, 0o600);
   return f;
 }
@@ -64,9 +65,33 @@ export function pqSignTxId(txIdHex, secretKey) {
 export function pqVerifyTxId(txIdHex, sig, publicKey) {
   return ml_dsa44.verify(sig, fromHex(txIdHex), publicKey, { context: CONTEXT });
 }
+/** Proof of possession for set_public_key: the NEW key signs the account's 25-byte address. */
+export function pqProofOfPossession(address, newSecretKey) {
+  return ml_dsa44.sign(utils.decodeBase58(address), newSecretKey, { context: CONTEXT_POP });
+}
 
-export const abiPath = new URL("../contract/abi/pqwallet.abi", import.meta.url).pathname;
-export const wasmPath = new URL("../contract/build/release/pqwallet.wasm", import.meta.url).pathname;
+export const abiPath = new URL("../dist/pqwallet.abi", import.meta.url).pathname;
+export const wasmPath = new URL("../dist/pqwallet.wasm", import.meta.url).pathname;
+const sumsPath = new URL("../dist/SHA256SUMS", import.meta.url).pathname;
+
+/** The bytecode that gets uploaded, after checking it against dist/SHA256SUMS. */
+export function loadBytecode() {
+  const bytes = new Uint8Array(readFileSync(wasmPath));
+  const line = readFileSync(sumsPath, "utf8").split("\n").find((l) => /\s\*?pqwallet\.wasm$/.test(l));
+  if (!line) throw new Error("dist/SHA256SUMS has no entry for pqwallet.wasm");
+  const got = hex(sha256(bytes));
+  if (!line.startsWith(got)) throw new Error(`dist/pqwallet.wasm sha256 ${got} does not match dist/SHA256SUMS; run npm run build`);
+  return { bytes, sha256: got };
+}
+
+/** A funded key for sponsored operations: FUND_WIF, or (testnet only) the koinky-kit issuer. */
+export function fundingWif(net) {
+  if (process.env.FUND_WIF) return process.env.FUND_WIF;
+  if (net.name !== "testnet") throw new Error("set FUND_WIF explicitly on " + net.name);
+  const f = `${process.env.HOME}/koinky-kit/.keys.testnet.json`;
+  if (existsSync(f)) return JSON.parse(readFileSync(f, "utf8")).issuer.wif;
+  throw new Error("set FUND_WIF to a funded testnet key");
+}
 /** The Koinos ABI file uses kebab-case keys; koilib wants entry_point (number) and read_only. */
 export function loadAbi() {
   const abi = JSON.parse(readFileSync(abiPath, "utf8"));

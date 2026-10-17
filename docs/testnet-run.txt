@@ -203,3 +203,69 @@ mana      41.16486048 KOIN
 contract  uploaded; overrides: call=true tx=true upload=true
 scheme    ML-DSA-44 (FIPS 204), pure mode; key registered: true; verifications: 7
 on-chain key sha256 4f4583ba0afdbbe67409ea6ff4a8dd8f9bf0e18cf933b0d4d7ecbd6401d71709 (matches local seed)
+
+# ===== round 2 after security review: upgrade under the ML-DSA key (account already locked), PoP, rotation, allowlist
+
+$ RC_LIMIT=1500000000 node cli/lock.mjs   (post-lock upgrade: upload authorised by the contract -> ML-DSA)
+bytecode sha256 8b1175cd70c58a015e6f2acee794bf30f5cefa584b25e5963742e9c5e5b3861a (verified against dist/SHA256SUMS)
+lock tx 0x12204556b98d0803f1eb965fc22f0843091d6293836d9e6660a5f0230a751c6640e0: 2 signatures (secp256k1 for the last default upload check, ML-DSA-44 for the payer)
+tx 0x12204556b98d0803f1eb965fc22f0843091d6293836d9e6660a5f0230a751c6640e0 submitted; rc_used 150367668; compute 6034172
+mined in block 9290249
+done: call, transaction and upload authority are all governed by the ML-DSA-44 key
+
+$ RC_LIMIT=300000000 node cli/send.mjs 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp 0.5
+--ok: sending 0.50000000 KOIN 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t -> 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp; tx 0x122047896cd48ac8033f394d413b8de00b628257cf7364ba57401924ff4098c5e090; 1 signature(s), 2420 bytes
+accepted by mempool; rc_used 39280730; compute 6078999; network 2668
+mined in block 9290253; balance 48.00000000 KOIN -> 47.50000000 KOIN
+
+$ RC_LIMIT=300000000 node cli/send.mjs 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp 0.5 --ecdsa
+--ecdsa: sending 0.50000000 KOIN 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t -> 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp; tx 0x1220a71e60c93da1a15c9063f754836f05c36f121ee745d0951fdb7a2c3e47cfcb99; 1 signature(s), 65 bytes
+rejected as expected: {"error":"account 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t has not authorized transaction","account":"1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t","code":-200,"logs":[]}
+
+$ RC_LIMIT=300000000 node cli/register.mjs --rotate
+rotating to a fresh key, authorised by the current ML-DSA-44 key
+tx 0x1220bae28e80fe0631f8fe0f6ef8c3778a2f013a34e987d4ebba9c98a01a03538872 submitted; rc_used 56918548; compute 8375374; network 6350
+mined in block 9290255
+key file updated with the new seed (previous seed kept as previousSeedHex)
+registered ML-DSA-44 key sha256 d1a8aaf57907e874dc9e72b95168b5779a61776086f92928007cf5278d8b6364
+
+$ RC_LIMIT=300000000 node cli/send.mjs 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp 0.5
+--ok: sending 0.50000000 KOIN 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t -> 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp; tx 0x1220228c02d20d0d6b7b04a3b18c10a6a4eb94c48992cdd99e1c2be9e0e39578aa15; 1 signature(s), 2420 bytes
+accepted by mempool; rc_used 39278690; compute 6078659; network 2668
+mined in block 9290258; balance 47.50000000 KOIN -> 47.00000000 KOIN
+
+$ RC_LIMIT=300000000 node cli/allow.mjs 1FaSvLjQJsCJKq5ybmGsMMQs8RQYyVv8ju on
+tx 0x1220e20dd919bfb41bc6e92cf391c6f4beb502bc3a2defbb7c4f442166efeff5b055; rc_used 38034344; mined in block 9290260
+1FaSvLjQJsCJKq5ybmGsMMQs8RQYyVv8ju nested-call authority: allowed
+
+$ RC_LIMIT=300000000 node cli/allow.mjs 1FaSvLjQJsCJKq5ybmGsMMQs8RQYyVv8ju off
+tx 0x12207289c1d0badba2e396c18fb4e9fdb231987ddedccb6f937b70f5da74e36462f2; rc_used 37184572; mined in block 9290262
+file:///data/data/com.termux/files/home/koinos-pq/cli/allow.mjs:15
+console.log(`${contract} nested-call authority: ${(await c.functions.get_allowed_caller({ contract })).result.value ? "allowed" : "not allowed"}`);
+                                                                                                              ^
+
+TypeError: Cannot read properties of undefined (reading 'value')
+
+Node.js v24.18.0
+
+$ RC_LIMIT=300000000 node cli/status.mjs
+network   testnet
+account   1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t
+balance   47.00000000 KOIN
+mana      36.98052124 KOIN
+contract  uploaded; overrides: call=true tx=true upload=true
+scheme    ML-DSA-44 (FIPS 204), pure mode; key registered: true; verifications: 0
+on-chain key sha256 d1a8aaf57907e874dc9e72b95168b5779a61776086f92928007cf5278d8b6364 (matches local seed)
+
+$ RC_LIMIT=300000000 node cli/allow.mjs 1FaSvLjQJsCJKq5ybmGsMMQs8RQYyVv8ju off   (re-run after fixing result display)
+tx 0x1220250dac7e9c2c8c001b73ef3c4b0f149ba94b94df0a8d9c1947cea6f108e6362d; rc_used 37610068; mined in block 9290274
+1FaSvLjQJsCJKq5ybmGsMMQs8RQYyVv8ju nested-call authority: not allowed
+
+$ node cli/status.mjs
+network   testnet
+account   1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t
+balance   47.00000000 KOIN
+mana      36.60846452 KOIN
+contract  uploaded; overrides: call=true tx=true upload=true
+scheme    ML-DSA-44 (FIPS 204), pure mode; key registered: true
+on-chain key sha256 d1a8aaf57907e874dc9e72b95168b5779a61776086f92928007cf5278d8b6364 (matches local seed)

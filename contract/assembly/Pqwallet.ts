@@ -33,11 +33,20 @@ export const SYSTEM_BUFFER_BYTES: u32 = 16384;
 System.setSystemBufferSize(SYSTEM_BUFFER_BYTES);
 export const SIG_BYTES: i32 = 2420;
 export const CONTEXT: string = "koinos/pqwallet/1";
+/**
+ * Proof of possession: a NEW key proves it exists by signing this account's 25-byte address under
+ * this context. It cannot sign the transaction id (the proof sits inside the operation that the id
+ * commits to), and it does not need to: the transaction itself is still authorised by the current
+ * key, so the proof only has to stop a key nobody holds from being registered.
+ */
+export const CONTEXT_POP: string = "koinos/pqwallet/1/pop";
 const CONFIG_SPACE_ID: u32 = 0;
+const ALLOWED_SPACE_ID: u32 = 1;
 
 export class Pqwallet {
   contractId: Uint8Array;
   config: Storage.Obj<pqwallet.config_object>;
+  allowed: Storage.Map<Uint8Array, pqwallet.allowed_object>;
 
   constructor() {
     // Also here, in case a caller constructs the class without the module start having run.
@@ -51,12 +60,25 @@ export class Pqwallet {
       pqwallet.config_object.encode,
       () => new pqwallet.config_object()
     );
+    this.allowed = new Storage.Map(
+      contractId,
+      ALLOWED_SPACE_ID,
+      pqwallet.allowed_object.decode,
+      pqwallet.allowed_object.encode,
+      () => new pqwallet.allowed_object(false)
+    );
   }
 
-  /** ML-DSA-44 check of `sig` over `msg` under `pk`. */
-  static verifyMlDsa44(sig: Uint8Array, msg: Uint8Array, pk: Uint8Array): bool {
+  /** True when the current entry point was invoked directly by a transaction operation. */
+  static calledDirectly(): bool {
+    const caller = System.getCaller().caller;
+    return caller == null || caller!.length == 0;
+  }
+
+  /** ML-DSA-44 check of `sig` over `msg` under `pk`, with the given context string. */
+  static verifyMlDsa44(sig: Uint8Array, msg: Uint8Array, pk: Uint8Array, context: string = CONTEXT): bool {
     if (sig.length != SIG_BYTES || pk.length != PK_BYTES) return false;
-    const ctx = Uint8Array.wrap(String.UTF8.encode(CONTEXT));
+    const ctx = Uint8Array.wrap(String.UTF8.encode(context));
     const r = mldsa44_verify(
       sig.dataStart, <u32>sig.length,
       msg.dataStart, <u32>msg.length,
@@ -116,25 +138,39 @@ export class Pqwallet {
       return this.legacyAuthorized(id!, sigs);
     }
     for (let i = 0; i < sigs.length; i++) {
-      if (Pqwallet.verifyMlDsa44(sigs[i], id!, pk!)) {
-        cfg.verifications += 1;
-        this.config.put(cfg);
-        return true;
-      }
+      if (Pqwallet.verifyMlDsa44(sigs[i], id!, pk!)) return true;
     }
     return false;
   }
 
   authorize(args: authority.authorize_arguments): authority.authorize_result {
-    // Same rule for contract_call, transaction_application and contract_upload:
-    // the transaction must carry a valid signature of the registered kind.
+    if (args.type == authority.authorization_type.contract_call) {
+      // call.contract_id is the contract asking (e.g. the token), call.caller is who called THAT
+      // contract: empty for a direct transaction operation, otherwise a nested contract (a DEX,
+      // a dapp). Nested callers may act for this account only if explicitly allowed; otherwise a
+      // dapp reached by any signed transaction could spend from, or reconfigure, the account.
+      const call = args.call;
+      if (call != null) {
+        const caller = call!.caller;
+        if (caller != null && caller!.length > 0 && !Arrays.equal(caller!, this.contractId)) {
+          if (!this.allowed.get(caller!)!.value) return new authority.authorize_result(false);
+        }
+      }
+    }
+    // transaction_application and contract_upload are never nested: signature rule only.
     return new authority.authorize_result(this.authorizedByTransaction());
   }
 
   set_public_key(args: pqwallet.set_public_key_arguments): pqwallet.set_public_key_result {
+    System.require(Pqwallet.calledDirectly(), "set_public_key must be a direct transaction operation");
     const newKey = args.public_key;
     System.require(newKey != null && newKey!.length == PK_BYTES, "public key must be 1312 bytes (ML-DSA-44)");
     System.require(this.authorizedByTransaction(), "not authorized");
+    const proof = args.proof;
+    System.require(
+      proof != null && Pqwallet.verifyMlDsa44(proof!, this.contractId, newKey!, CONTEXT_POP),
+      "proof of possession failed: the new key must sign this account's address with context koinos/pqwallet/1/pop"
+    );
     const cfg = this.config.get()!;
     cfg.public_key = newKey!;
     this.config.put(cfg);
@@ -161,8 +197,28 @@ export class Pqwallet {
       <u32>PK_BYTES,
       <u32>SIG_BYTES,
       CONTEXT,
-      pk != null && pk!.length == PK_BYTES,
-      cfg.verifications
+      pk != null && pk!.length == PK_BYTES
     );
+  }
+
+  set_allowed_caller(args: pqwallet.set_allowed_caller_arguments): pqwallet.set_allowed_caller_result {
+    System.require(Pqwallet.calledDirectly(), "set_allowed_caller must be a direct transaction operation");
+    const contract = args.contract;
+    System.require(contract != null && contract!.length == 25, "contract must be a 25-byte address");
+    System.require(this.authorizedByTransaction(), "not authorized");
+    if (args.allowed) this.allowed.put(contract!, new pqwallet.allowed_object(true));
+    else this.allowed.remove(contract!);
+    System.event(
+      "pqwallet.allowed_caller",
+      Protobuf.encode(new pqwallet.allowed_caller_event(this.contractId, contract!, args.allowed), pqwallet.allowed_caller_event.encode),
+      [this.contractId]
+    );
+    return new pqwallet.set_allowed_caller_result();
+  }
+
+  get_allowed_caller(args: pqwallet.get_allowed_caller_arguments): pqwallet.get_allowed_caller_result {
+    const contract = args.contract;
+    if (contract == null) return new pqwallet.get_allowed_caller_result(false);
+    return new pqwallet.get_allowed_caller_result(this.allowed.get(contract!)!.value);
   }
 }

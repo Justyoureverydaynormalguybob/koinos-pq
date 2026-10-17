@@ -11,7 +11,7 @@ wasm/        FIPS 204 reference verifier (C, vendored from PQ-Crystals) compiled
 contract/    AssemblyScript account contract; wasm-merge links the verifier in
 cli/         testnet tooling: keys, fund, deploy, register, send, lock, status
 dist/        built artefacts with SHA256SUMS
-docs/        SPEC.md (contract spec), NATIVE-PROPOSAL.md (chain-level follow-up), TESTING.md
+docs/        SPEC.md (contract spec), SECURITY.md (review + resolutions), NATIVE-PROPOSAL.md, TESTING.md
 HANDOVER.md  start here
 ```
 
