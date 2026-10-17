@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package pqwallet;
+
+import "koinos/options.proto";
+
+// Post-quantum account contract for Koinos.
+// Once a public key is registered, the account is authorised only by an
+// ML-DSA-44 (FIPS 204) signature over the transaction id, found in the
+// transaction's signatures list. Until then the legacy secp256k1 check applies.
+
+// @description Register (or rotate) the ML-DSA-44 public key (1312 bytes)
+// @read-only false
+message set_public_key_arguments {
+   bytes public_key = 1;
+}
+
+message set_public_key_result {}
+
+// @description Get the registered ML-DSA-44 public key (empty if none)
+// @read-only true
+message get_public_key_arguments {}
+
+message get_public_key_result {
+   bytes value = 1;
+}
+
+// @description Scheme name, sizes and status
+// @read-only true
+message get_info_arguments {}
+
+message get_info_result {
+   string scheme = 1;
+   uint32 public_key_bytes = 2;
+   uint32 signature_bytes = 3;
+   string context = 4;
+   bool key_registered = 5;
+   uint64 verifications = 6;
+}
+
+message config_object {
+   bytes public_key = 1;
+   uint64 verifications = 2;
+}
+
+message key_set_event {
+   bytes account = 1 [(koinos.btype) = ADDRESS];
+   bytes public_key_hash = 2;
+}

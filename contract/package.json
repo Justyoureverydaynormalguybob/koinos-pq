@@ -1,0 +1,9 @@
+{
+  "name": "koinos-pq-contract",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@koinos/sdk-as": "1.5.1"
+  }
+}
