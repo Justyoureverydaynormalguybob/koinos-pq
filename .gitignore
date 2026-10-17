@@ -1,0 +1,13 @@
+node_modules/
+.keys.*.json
+contract/.stubs/
+contract/build/
+contract/output.wasm
+contract/output.wat
+contract/assembly/index.ts
+contract/assembly/proto/*.ts
+contract/assembly/__tests__/fixtures.ts
+contract/koinos/
+contract/google/
+wasm/*.o
+*.log

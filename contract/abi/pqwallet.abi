@@ -1,0 +1,26 @@
+{
+    "methods": {
+        "set_public_key": {
+            "argument": "pqwallet.set_public_key_arguments",
+            "return": "pqwallet.set_public_key_result",
+            "description": "Register (or rotate) the ML-DSA-44 public key (1312 bytes)",
+            "entry-point": "0x4cc6c61b",
+            "read-only": false
+        },
+        "get_public_key": {
+            "argument": "pqwallet.get_public_key_arguments",
+            "return": "pqwallet.get_public_key_result",
+            "description": "Get the registered ML-DSA-44 public key (empty if none)",
+            "entry-point": "0x96634f68",
+            "read-only": true
+        },
+        "get_info": {
+            "argument": "pqwallet.get_info_arguments",
+            "return": "pqwallet.get_info_result",
+            "description": "Scheme name, sizes and status",
+            "entry-point": "0xbd7f6850",
+            "read-only": true
+        }
+    },
+    "types": "CpEFCh1hc3NlbWJseS9wcm90by9wcXdhbGxldC5wcm90bxIIcHF3YWxsZXQaFGtvaW5vcy9vcHRpb25zLnByb3RvIjkKGHNldF9wdWJsaWNfa2V5X2FyZ3VtZW50cxIdCgpwdWJsaWNfa2V5GAEgASgMUglwdWJsaWNLZXkiFwoVc2V0X3B1YmxpY19rZXlfcmVzdWx0IhoKGGdldF9wdWJsaWNfa2V5X2FyZ3VtZW50cyItChVnZXRfcHVibGljX2tleV9yZXN1bHQSFAoFdmFsdWUYASABKAxSBXZhbHVlIhQKEmdldF9pbmZvX2FyZ3VtZW50cyLjAQoPZ2V0X2luZm9fcmVzdWx0EhYKBnNjaGVtZRgBIAEoCVIGc2NoZW1lEigKEHB1YmxpY19rZXlfYnl0ZXMYAiABKA1SDnB1YmxpY0tleUJ5dGVzEicKD3NpZ25hdHVyZV9ieXRlcxgDIAEoDVIOc2lnbmF0dXJlQnl0ZXMSGAoHY29udGV4dBgEIAEoCVIHY29udGV4dBIlCg5rZXlfcmVnaXN0ZXJlZBgFIAEoCFINa2V5UmVnaXN0ZXJlZBIkCg12ZXJpZmljYXRpb25zGAYgASgEUg12ZXJpZmljYXRpb25zIlQKDWNvbmZpZ19vYmplY3QSHQoKcHVibGljX2tleRgBIAEoDFIJcHVibGljS2V5EiQKDXZlcmlmaWNhdGlvbnMYAiABKARSDXZlcmlmaWNhdGlvbnMiVwoNa2V5X3NldF9ldmVudBIeCgdhY2NvdW50GAEgASgMQgSAtRgGUgdhY2NvdW50EiYKD3B1YmxpY19rZXlfaGFzaBgCIAEoDFINcHVibGljS2V5SGFzaGIGcHJvdG8z"
+}
