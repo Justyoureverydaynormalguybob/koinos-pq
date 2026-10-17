@@ -1,6 +1,6 @@
-import { Base58, Base64, MockVM, authority, chain, protocol } from "@koinos/sdk-as";
+import { Base58, Base64, MockVM, System, authority, chain, protocol } from "@koinos/sdk-as";
 import { pqwallet } from "../proto/pqwallet";
-import { Pqwallet, PK_BYTES, SIG_BYTES } from "../Pqwallet";
+import { Pqwallet, PK_BYTES, SIG_BYTES, SYSTEM_BUFFER_BYTES } from "../Pqwallet";
 import * as F from "./fixtures";
 
 // The account under test IS the legacy fixture address, so the secp256k1 fallback can match.
@@ -43,6 +43,10 @@ describe("pqwallet", () => {
     MockVM.setCaller(new chain.caller_data(new Uint8Array(0), chain.privilege.kernel_mode));
     MockVM.setContractMetadata(new chain.contract_metadata_object(new Uint8Array(0), false, true, true, false));
     MockVM.setHeadInfo(new chain.head_info(null, 1_700_000_000_000, 0));
+  });
+
+  it("enlarges the SDK system-call buffer at module start (1312-byte args, 2420-byte sigs)", () => {
+    expect(System.getSystemBufferSize()).toBe(SYSTEM_BUFFER_BYTES);
   });
 
   it("reports the scheme and no key at first", () => {

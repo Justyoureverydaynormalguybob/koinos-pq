@@ -43,8 +43,11 @@ lock      -> finally, also override upload authority so even replacing the contr
 ```
 
 Until `lock`, the secp256k1 key can still re-upload the contract. That is deliberate: it is the
-recovery path while testing. After `lock` the secp256k1 key is dead weight and the account is
-post-quantum end to end.
+recovery path while testing, and it was used twice on testnet (`cli/rescue-upload.mjs`, where
+the issuer account pays the mana and the account key only authorises the upload). After `lock`
+the secp256k1 key is dead weight and the account is post-quantum end to end. The `lock`
+transaction itself carries both signatures, secp256k1 first, because it is the last transaction
+the chain's default rule ever checks for this account.
 
 Commands (testnet by default; `KOINOS_NETWORK=mainnet` switches):
 
@@ -79,7 +82,11 @@ npm run status
   calls `require_authority` on it works (the rule is the same, the signature kind differs), but
   nothing that expects to *recover* a public key from the account's signature will.
 - **Not audited.** The verifier is the NIST reference code, unmodified, with public test vectors.
-  The contract around it is ~130 lines and tested, but has not had a third-party audit.
+  The contract around it is ~160 lines and tested, but has not had a third-party audit.
+- **Two bugs only testnet found.** The SDK's 1 KiB system-call buffer, and reading the whole
+  transaction (which fails on a large re-upload). Both are fixed and both are now covered by the
+  live run in `docs/testnet-run.txt`. The lesson for anyone extending this: mock VM tests are
+  necessary, a testnet life cycle is the real test.
 
 ## 5. Where to go next
 
