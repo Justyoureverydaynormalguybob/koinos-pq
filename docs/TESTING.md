@@ -32,6 +32,23 @@ End state: `get_info` reports key registered, 7 successful verifications; the on
 `4f4583ba0afdbbe67409ea6ff4a8dd8f9bf0e18cf933b0d4d7ecbd6401d71709` matches the local seed.
 The secp256k1 key for this account can no longer do anything.
 
+### Round 2 (after the security review, same day)
+The account was already locked, so every step below was authorised by the ML-DSA-44 key alone.
+
+| step | tx | block | result |
+|---|---|---|---|
+| upgrade to the reviewed contract (upload authority is the contract's) | `0x12204556…40e0` | 9290249 | mined, compute 6.03M |
+| send 0.5 tKOIN, ML-DSA only | `0x12204789…e090` | 9290253 | mined, compute 6.08M |
+| send with secp256k1 | | | rejected: "has not authorized transaction" |
+| rotate to a fresh key (proof of possession by the new key) | | 9290255 | mined; new key `d1a8aaf5…6364` |
+| send 0.5 tKOIN with the new key | `0x1220228c…aa15` | 9290258 | mined |
+| allow-list a contract for nested calls | `0x1220e20d…b055` | 9290260 | mined, reads back "allowed" |
+| revoke it | | | mined, reads back "not allowed" |
+
+Not exercised on testnet (covered by mock VM tests): a nested contract calling `set_public_key`
+(refused), a nested caller spending without being allow-listed (refused). Exercising those live
+needs an attacker contract deployed on testnet; see `docs/SECURITY.md` H1/H2.
+
 ### What testnet taught that the mock VM did not
 1. The SDK system-call buffer (1 KiB) must be enlarged before the dispatcher reads arguments.
 2. `authorize` must not load the whole transaction; a contract re-upload is 58 KB.

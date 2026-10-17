@@ -12,7 +12,7 @@ if (!m) { console.log("contract  none uploaded yet"); process.exit(0); }
 console.log(`contract  uploaded; overrides: call=${!!m.authorizes_call_contract} tx=${!!m.authorizes_transaction_application} upload=${!!m.authorizes_upload_contract}`);
 const c = pqContract(net, a);
 const info = (await c.functions.get_info()).result;
-console.log(`scheme    ${info.scheme}; key registered: ${!!info.key_registered}; verifications: ${info.verifications || 0}`);
+console.log(`scheme    ${info.scheme}; key registered: ${!!info.key_registered}`);
 if (info.key_registered) {
   const onchain = (await c.functions.get_public_key()).result.value;
   const local = pqKeysFromSeed(k.pq.seedHex).publicKey;

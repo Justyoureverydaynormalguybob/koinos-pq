@@ -9,10 +9,13 @@ import "koinos/options.proto";
 // ML-DSA-44 (FIPS 204) signature over the transaction id, found in the
 // transaction's signatures list. Until then the legacy secp256k1 check applies.
 
-// @description Register (or rotate) the ML-DSA-44 public key (1312 bytes)
+// @description Register (or rotate) the ML-DSA-44 public key (1312 bytes). `proof` is an
+// ML-DSA-44 signature by the NEW key over this account's 25-byte address with context
+// "koinos/pqwallet/1/pop" (proof of possession). Only callable as a direct transaction operation.
 // @read-only false
 message set_public_key_arguments {
    bytes public_key = 1;
+   bytes proof = 2;
 }
 
 message set_public_key_result {}
@@ -35,12 +38,40 @@ message get_info_result {
    uint32 signature_bytes = 3;
    string context = 4;
    bool key_registered = 5;
-   uint64 verifications = 6;
+}
+
+// @description Allow or forbid a contract to exercise this account's authority from inside a
+// nested call (for example a DEX pulling tokens). Direct operations never need this.
+// @read-only false
+message set_allowed_caller_arguments {
+   bytes contract = 1 [(koinos.btype) = CONTRACT_ID];
+   bool allowed = 2;
+}
+
+message set_allowed_caller_result {}
+
+// @description Is this contract allowed to act for the account from a nested call?
+// @read-only true
+message get_allowed_caller_arguments {
+   bytes contract = 1 [(koinos.btype) = CONTRACT_ID];
+}
+
+message get_allowed_caller_result {
+   bool value = 1;
 }
 
 message config_object {
    bytes public_key = 1;
-   uint64 verifications = 2;
+}
+
+message allowed_object {
+   bool value = 1;
+}
+
+message allowed_caller_event {
+   bytes account = 1 [(koinos.btype) = ADDRESS];
+   bytes contract = 2 [(koinos.btype) = CONTRACT_ID];
+   bool allowed = 3;
 }
 
 message key_set_event {

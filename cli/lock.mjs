@@ -3,8 +3,7 @@
 // signatures: the secp256k1 one FIRST (the default rule stops at the first matching 65-byte
 // signature and would abort on a 2420-byte one), and the ML-DSA-44 one for the payer check that our
 // contract performs. After this, no secp256k1 key can touch the account at all.
-import { readFileSync } from "node:fs";
-import { network, loadKeys, saveKeys, pqContract, pqKeysFromSeed, wasmPath, loadAbi, buildTransaction, submit, pqSignTxId, b64url, waitMined, utils, Signer } from "./lib.mjs";
+import { network, loadKeys, saveKeys, pqContract, pqKeysFromSeed, loadBytecode, loadAbi, buildTransaction, submit, pqSignTxId, b64url, waitMined, utils, Signer } from "./lib.mjs";
 
 const net = network();
 const k = loadKeys(net.name);
@@ -13,7 +12,8 @@ const pq = pqKeysFromSeed(k.pq.seedHex);
 const c = pqContract(net, address);
 const info = (await c.functions.get_info()).result;
 if (!info.key_registered) { console.error("register the ML-DSA key first"); process.exit(1); }
-const bytecode = new Uint8Array(readFileSync(wasmPath));
+const { bytes: bytecode, sha256: digest } = loadBytecode();
+console.log(`bytecode sha256 ${digest} (verified against dist/SHA256SUMS)`);
 const operation = {
   upload_contract: {
     contract_id: address,

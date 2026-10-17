@@ -30,9 +30,25 @@ function expectFail(fn: () => void, message: string): void {
   expect(got.includes(message)).toBe(true, "expected error containing '" + message + "' but got '" + got + "'");
 }
 
+const DAPP = Base58.decode("1DQzuCcTKacbs9GGScRTU1Hc8BsyARTPqe");
+const TOKEN = Base58.decode("1DQzuCcTKacbs9GGScRTU1Hc8BsyARTPqf");
+
 function registerA(c: Pqwallet): void {
   tx(F.TX_ID, [F.LEGACY_SIG]);
-  c.set_public_key(new pqwallet.set_public_key_arguments(Base64.decode(F.PK_A)));
+  c.set_public_key(new pqwallet.set_public_key_arguments(Base64.decode(F.PK_A), Base64.decode(F.POP_A)));
+}
+
+/** What the chain passes for a contract_call authorization: `contract` asked, called by `caller`. */
+function authorizeCall(c: Pqwallet, contract: Uint8Array, caller: Uint8Array | null): bool {
+  const call = new authority.call_data(contract, 0, caller == null ? new Uint8Array(0) : caller!, new Uint8Array(0));
+  return c.authorize(new authority.authorize_arguments(authority.authorization_type.contract_call, call)).value;
+}
+
+function nested(caller: Uint8Array): void {
+  MockVM.setCaller(new chain.caller_data(caller, chain.privilege.user_mode));
+}
+function direct(): void {
+  MockVM.setCaller(new chain.caller_data(new Uint8Array(0), chain.privilege.kernel_mode));
 }
 
 describe("pqwallet", () => {
@@ -82,9 +98,70 @@ describe("pqwallet", () => {
     tx(F.TX_ID, [F.STRANGER_SIG]);
     expectFail(() => {
       const c2 = new Pqwallet();
-      c2.set_public_key(new pqwallet.set_public_key_arguments(Base64.decode(F.PK_A)));
+      c2.set_public_key(new pqwallet.set_public_key_arguments(Base64.decode(F.PK_A), Base64.decode(F.POP_A)));
     }, "not authorized");
     expect(c.get_info(new pqwallet.get_info_arguments()).key_registered).toBe(false);
+  });
+
+  it("set_public_key demands proof of possession by the new key", () => {
+    tx(F.TX_ID, [F.LEGACY_SIG]);
+    expectFail(() => {
+      const c2 = new Pqwallet();
+      c2.set_public_key(new pqwallet.set_public_key_arguments(Base64.decode(F.PK_A), null));
+    }, "proof of possession");
+    expectFail(() => {
+      const c2 = new Pqwallet();
+      c2.set_public_key(new pqwallet.set_public_key_arguments(Base64.decode(F.PK_A), Base64.decode(F.POP_B)));
+    }, "proof of possession");
+    expectFail(() => {
+      const c2 = new Pqwallet();
+      c2.set_public_key(new pqwallet.set_public_key_arguments(Base64.decode(F.PK_A), Base64.decode(F.SIG_A_TX)));
+    }, "proof of possession");
+    const c = new Pqwallet();
+    expect(c.get_info(new pqwallet.get_info_arguments()).key_registered).toBe(false);
+  });
+
+  it("set_public_key refuses nested calls from another contract (H1)", () => {
+    const c = new Pqwallet();
+    registerA(c);
+    tx(F.TX_ID, [F.SIG_A_TX]);
+    nested(DAPP);
+    expectFail(() => {
+      const c2 = new Pqwallet();
+      c2.set_public_key(new pqwallet.set_public_key_arguments(Base64.decode(F.PK_B), Base64.decode(F.POP_B)));
+    }, "direct transaction operation");
+    direct();
+    expect(Base64.encode(c.get_public_key(new pqwallet.get_public_key_arguments()).value!)).toBe(F.PK_A);
+  });
+
+  it("contract_call authority: direct operations yes, nested callers only if allowed (H2)", () => {
+    const c = new Pqwallet();
+    registerA(c);
+    tx(F.TX_ID, [F.SIG_A_TX]);
+    expect(authorizeCall(c, TOKEN, null)).toBe(true, "user op calls the token directly");
+    expect(authorizeCall(c, TOKEN, CONTRACT_ID)).toBe(true, "the account's own contract is the caller");
+    expect(authorizeCall(c, TOKEN, DAPP)).toBe(false, "a dapp pulling tokens is refused by default");
+    expectFail(() => {
+      const c2 = new Pqwallet();
+      nested(DAPP);
+      c2.set_allowed_caller(new pqwallet.set_allowed_caller_arguments(DAPP, true));
+    }, "direct transaction operation");
+    direct();
+    tx(F.TX_ID, [F.LEGACY_SIG]);
+    expectFail(() => {
+      const c2 = new Pqwallet();
+      c2.set_allowed_caller(new pqwallet.set_allowed_caller_arguments(DAPP, true));
+    }, "not authorized");
+    tx(F.TX_ID, [F.SIG_A_TX]);
+    c.set_allowed_caller(new pqwallet.set_allowed_caller_arguments(DAPP, true));
+    expect(c.get_allowed_caller(new pqwallet.get_allowed_caller_arguments(DAPP)).value).toBe(true);
+    expect(authorizeCall(c, TOKEN, DAPP)).toBe(true, "allowed dapp, valid signature");
+    tx(F.TX_ID, [F.SIG_B_TX]);
+    expect(authorizeCall(c, TOKEN, DAPP)).toBe(false, "allowed dapp but no valid signature");
+    tx(F.TX_ID, [F.SIG_A_TX]);
+    c.set_allowed_caller(new pqwallet.set_allowed_caller_arguments(DAPP, false));
+    expect(authorizeCall(c, TOKEN, DAPP)).toBe(false, "revoked");
+    expect(authorizeCall(c, TOKEN, null)).toBe(true, "direct still fine");
   });
 
   it("registers an ML-DSA-44 key with the legacy signature and emits an event", () => {
@@ -126,27 +203,16 @@ describe("pqwallet", () => {
     expect(authorize(c)).toBe(false, "no signatures");
   });
 
-  it("counts successful verifications", () => {
-    const c = new Pqwallet();
-    registerA(c);
-    tx(F.TX_ID, [F.SIG_A_TX]);
-    expect(authorize(c)).toBe(true);
-    expect(authorize(c)).toBe(true);
-    tx(F.TX_ID, [F.SIG_B_TX]);
-    expect(authorize(c)).toBe(false);
-    expect(c.get_info(new pqwallet.get_info_arguments()).verifications).toBe(2);
-  });
-
   it("rotates to a new key only with the current key's signature", () => {
     const c = new Pqwallet();
     registerA(c);
     tx(F.TX_ID, [F.LEGACY_SIG]);
     expectFail(() => {
       const c2 = new Pqwallet();
-      c2.set_public_key(new pqwallet.set_public_key_arguments(Base64.decode(F.PK_B)));
+      c2.set_public_key(new pqwallet.set_public_key_arguments(Base64.decode(F.PK_B), Base64.decode(F.POP_B)));
     }, "not authorized");
     tx(F.TX_ID, [F.SIG_A_TX]);
-    c.set_public_key(new pqwallet.set_public_key_arguments(Base64.decode(F.PK_B)));
+    c.set_public_key(new pqwallet.set_public_key_arguments(Base64.decode(F.PK_B), Base64.decode(F.POP_B)));
     tx(F.TX_ID, [F.SIG_B_TX]);
     expect(authorize(c)).toBe(true, "new key works");
     tx(F.TX_ID, [F.SIG_A_TX]);

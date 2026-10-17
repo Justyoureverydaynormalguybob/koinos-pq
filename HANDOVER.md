@@ -34,13 +34,18 @@ signing code that never runs on chain, so the upstream code is vendored directly
 ## 3. The life cycle of a post-quantum account
 
 ```
-keys      -> make a fresh secp256k1 key (needed once, to upload) and an ML-DSA-44 seed
-fund      -> give the address some KOIN (testnet: faucet, then cli/fund.mjs)
-deploy    -> upload pqwallet to the address, overriding call + transaction authority
-register  -> store the ML-DSA-44 public key (this last secp256k1-signed tx is the bootstrap)
-send      -> from now on every tx is signed only with ML-DSA-44
-lock      -> finally, also override upload authority so even replacing the contract needs ML-DSA
+keys            -> make a fresh secp256k1 key (needed once, to upload) and an ML-DSA-44 seed
+fund            -> give the address some KOIN (testnet: faucet, then cli/fund.mjs)
+deploy --lock   -> upload pqwallet, all three authority types governed by the contract from block one
+register        -> store the ML-DSA-44 public key with a proof of possession
+                   (this last secp256k1-signed tx is the bootstrap)
+send            -> from now on every tx is signed only with ML-DSA-44
+register --rotate, allow <contract> on|off  -> optional housekeeping, ML-DSA-signed
 ```
+
+For testing there is a two-step variant: `deploy` without `--lock` keeps upload authority with
+the secp256k1 key so a broken contract can be replaced (`cli/rescue-upload.mjs`), and `lock`
+closes that later. Re-running `lock` on a locked account is how you upgrade the contract.
 
 Until `lock`, the secp256k1 key can still re-upload the contract. That is deliberate: it is the
 recovery path while testing, and it was used twice on testnet (`cli/rescue-upload.mjs`, where
@@ -64,7 +69,15 @@ npm run lock
 npm run status
 ```
 
-## 4. Things a careful person should know
+## 4. Security review
+
+An independent adversarial review was run on 2026-10-17 and every finding was either fixed and
+re-tested on testnet or documented as an accepted limitation. Read `docs/SECURITY.md`. The two
+important fixes: only a direct transaction operation can change the key or the allow-list (a
+dapp inside a signed transaction cannot), and other contracts cannot spend from the account via
+nested calls unless the holder allow-lists them.
+
+## 5. Things a careful person should know
 
 - **Back up the seed.** `.keys.<network>.json` holds a 32-byte seed; ML-DSA keys are derived
   from it deterministically. Lose it after `lock` and the account is gone for good. There is no
@@ -76,6 +89,9 @@ npm run status
   `koinos/pqwallet/1`. The context stops a signature made for anything else being replayed here.
 - **Bandwidth.** ~2.5 KB per transaction. Fine for a person; for a high-volume dapp the native
   path in `docs/NATIVE-PROPOSAL.md` is the real fix.
+- **Dapps that pull funds.** A DEX or similar contract that moves tokens out of the account from
+  inside its own code is refused until you allow-list it (`npm run allow -- <contract> on`).
+  Ordinary transfers and anything you place directly in a transaction need nothing.
 - **Wallet support.** Kondor and other wallets cannot produce ML-DSA signatures yet. The CLI is
   the wallet for now. A browser signer is a small job: `@noble/post-quantum` runs in browsers.
 - **Mainnet.** Deploying costs nothing beyond mana but the account is then unusual: any dapp that
@@ -88,7 +104,7 @@ npm run status
   live run in `docs/testnet-run.txt`. The lesson for anyone extending this: mock VM tests are
   necessary, a testnet life cycle is the real test.
 
-## 5. Where to go next
+## 6. Where to go next
 
 1. Run the mainnet life cycle on a small dedicated account first, not the main holdings.
 2. Propose `docs/NATIVE-PROPOSAL.md` to the Koinos Foundation / Koinos Fund System: a native
@@ -96,7 +112,7 @@ npm run status
    with no contract, at native speed, and is a prerequisite for post-quantum block production.
 3. A Kondor or passkey-style signer using the same seed format.
 
-## 6. Reproducing from a clean machine
+## 7. Reproducing from a clean machine
 
 Needs: node 20+, clang with the wasm32 target, lld, binaryen (`wasm-merge`), wabt
 (`wasm-validate`, `wasm-objdump`), protoc.

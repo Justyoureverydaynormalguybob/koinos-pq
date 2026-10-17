@@ -23,12 +23,16 @@ const sigA = ml_dsa44.sign(txId, A.secretKey, { context: CTX, extraEntropy: fals
 const sigA2 = ml_dsa44.sign(txId2, A.secretKey, { context: CTX, extraEntropy: false });
 const sigB = ml_dsa44.sign(txId, B.secretKey, { context: CTX, extraEntropy: false });
 const sigANoCtx = ml_dsa44.sign(txId, A.secretKey, { extraEntropy: false });
+const POP = new TextEncoder().encode("koinos/pqwallet/1/pop");
 if (!ml_dsa44.verify(sigA, txId, A.publicKey, { context: CTX })) throw new Error("self-check failed");
 
 // Legacy secp256k1: a throwaway test key (NOT a real account). Koinos signs the 32-byte digest and
 // the chain recovers against the multihash id; koilib's signHash does the same.
 const legacy = Signer.fromSeed("pqwallet legacy fixture key");
 const legacyAddr = legacy.getAddress();
+const addrBytes = utils.decodeBase58(legacyAddr);
+const popA = ml_dsa44.sign(addrBytes, A.secretKey, { context: POP, extraEntropy: false });
+const popB = ml_dsa44.sign(addrBytes, B.secretKey, { context: POP, extraEntropy: false });
 const legacySig = await legacy.signHash(digest);
 const stranger = Signer.fromSeed("some other key");
 const strangerSig = await stranger.signHash(digest);
@@ -42,6 +46,8 @@ export const SIG_A_TX = "${b64(sigA)}";       // key A over TX_ID, context koino
 export const SIG_A_TX2 = "${b64(sigA2)}";     // key A over TX_ID_2
 export const SIG_B_TX = "${b64(sigB)}";       // key B over TX_ID
 export const SIG_A_NOCTX = "${b64(sigANoCtx)}"; // key A over TX_ID but with empty context (must fail)
+export const POP_A = "${b64(popA)}";       // key A proof of possession over LEGACY_ADDRESS bytes
+export const POP_B = "${b64(popB)}";       // key B proof of possession over LEGACY_ADDRESS bytes
 export const LEGACY_ADDRESS = "${legacyAddr}";
 export const LEGACY_SIG = "${b64(legacySig)}";     // secp256k1 recoverable sig by LEGACY_ADDRESS over TX_ID's digest
 export const STRANGER_SIG = "${b64(strangerSig)}"; // secp256k1 sig by a different key
