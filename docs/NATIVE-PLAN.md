@@ -60,8 +60,9 @@ for contracts, block signatures, and the koilib/Kondor signer.
   (see "JS side" below).
 - Resource accounting: the thunk's compute cost comes from the `compute_bandwidth_registry`
   (execution_context.cpp ~229-341). The new branch runs native code outside the metered VM, so add
-  an explicit `use_compute_bandwidth(...)` charge sized from a benchmark (ML-DSA-44 verify ≈ 50 µs
-  on a laptop core; price it like ~10 secp256k1 recoveries to start, document the number).
+  an explicit `use_compute_bandwidth(...)` charge sized from a benchmark (measured 2026-10-17, see
+  docs/THROUGHPUT.md section 3: the vendored reference verifier takes 2.6x a secp256k1 recovery, so charge
+  90,000 ticks, about three recoveries, not the ten first guessed; an AVX2 build would justify ~20,000).
 
 ## Tests
 1. Unit tests in `tests/thunk_test.cpp` next to the existing `recover_public_key` (~2750) and
@@ -112,6 +113,13 @@ for contracts, block signatures, and the koilib/Kondor signer.
   registers a hash-chain head, reveals the next preimage per block, eligibility =
   H(seed || preimage) / VHP < target). Design document with security argument first; this is a
   consensus change and needs a governance vote.
+
+## Throughput
+Read docs/THROUGHPUT.md before touching the entry format or the compute charge. Summary: verification CPU
+is a few percent of a transaction; bytes grow 6-13x; today's chain is compute-bound so transactions per
+block do not fall; reserve a type-tag byte in the signature entry (0x01 key+sig now, 0x02 sig-only with a
+stored key and a Falcon-512 tag later), add a per-node verification cache, and take a bandwidth-budget
+proposal to governance with the dsa enum in B2.
 
 ## Reality checks
 - The default authority thunk runs for every transaction on the network; a bug there halts the

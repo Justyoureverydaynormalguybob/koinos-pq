@@ -11,7 +11,9 @@ wasm/        FIPS 204 reference verifier (C, vendored from PQ-Crystals) compiled
 contract/    AssemblyScript account contract; wasm-merge links the verifier in
 cli/         testnet tooling: keys, fund, deploy, register, send, lock, status
 dist/        built artefacts with SHA256SUMS
-docs/        SPEC.md (contract spec), SECURITY.md (review + resolutions), NATIVE-PROPOSAL.md, TESTING.md
+docs/        SPEC.md (contract spec), SECURITY.md (review + resolutions), NATIVE-PROPOSAL.md, NATIVE-PLAN.md,
+             TESTING.md, THROUGHPUT.md (does post-quantum make the chain slower? measured answer)
+bench/       native verify timings behind THROUGHPUT.md and the proposed compute charge (runs in Docker)
 HANDOVER.md  start here
 ```
 
