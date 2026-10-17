@@ -11,3 +11,6 @@ contract/koinos/
 contract/google/
 wasm/*.o
 *.log
+contract/abi/pqwallet-abi.json
+contract/assembly/*.boilerplate.ts
+contract/*.pb
