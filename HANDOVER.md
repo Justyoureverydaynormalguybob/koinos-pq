@@ -106,6 +106,10 @@ nested calls unless the holder allow-lists them.
 
 ## 6. Where to go next
 
+Before starting the native work read `docs/THROUGHPUT.md`: it measures whether post-quantum signatures
+slow the chain down (verification: no; bytes: 6-13x bigger; transactions per block today: unchanged,
+because Koinos is compute-bound) and lists what to design in so it stays fast.
+
 1. Run the mainnet life cycle on a small dedicated account first, not the main holdings.
 2. Propose `docs/NATIVE-PROPOSAL.md` to the Koinos Foundation / Koinos Fund System: a native
    `ml_dsa_44` entry in the chain's `dsa` enum would make every account able to go post-quantum
