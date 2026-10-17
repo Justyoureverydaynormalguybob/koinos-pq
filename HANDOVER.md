@@ -106,6 +106,13 @@ nested calls unless the holder allow-lists them.
 
 ## 6. Where to go next
 
+**Phase B1 is done (2026-10-17).** The koinos-chain fork (branch `ml-dsa-44`) verifies ML-DSA-44 natively:
+a transaction signature entry `0x01 || public key || signature` (3733 bytes) authorises the address derived
+from the key, with no contract. Chain tests pass (50/50) and `docs/devnet-run.txt` is the proof on a private
+chain: `devnet/` holds the compose file, genesis and the script that deploys KOIN, mints, and runs the
+transfer plus negative cases (`docker compose -f devnet/docker-compose.yml up -d`, `node devnet/run.mjs`).
+The branch is committed locally and not yet pushed; the next step is the pull request.
+
 Before starting the native work read `docs/THROUGHPUT.md`: it measures whether post-quantum signatures
 slow the chain down (verification: no; bytes: 6-13x bigger; transactions per block today: unchanged,
 because Koinos is compute-bound) and lists what to design in so it stays fast.

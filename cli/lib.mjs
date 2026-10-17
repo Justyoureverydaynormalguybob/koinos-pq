@@ -1,5 +1,6 @@
 // Shared helpers for the koinos-pq CLI (testnet by default).
 import { readFileSync, writeFileSync, existsSync, chmodSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { ml_dsa44 } from "@noble/post-quantum/ml-dsa.js";
 import { Provider, Signer, Contract, Transaction, utils } from "koilib";
@@ -17,10 +18,21 @@ export const NETWORKS = {
     koin: "15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL",
     explorer: "https://koinosblocks.com",
   },
+  // Private devnet running the koinos-chain fork (devnet/docker-compose.yml). KOIN is the local-koinos
+  // testnet build uploaded by devnet/run.mjs to the address of its dev key; blocks are produced on demand.
+  devnet: {
+    rpc: [process.env.KOINOS_RPC || "http://127.0.0.1:8080/"],
+    rest: null,
+    koin: "1BRmrUgtSQVUggoeE9weG4f7nidyydnYfQ",
+    explorer: null,
+  },
 };
 export const CONTEXT = new TextEncoder().encode("koinos/pqwallet/1");
 export const CONTEXT_POP = new TextEncoder().encode("koinos/pqwallet/1/pop");
+/** Native path (koinos-chain fork, phase B1): a different context so the two can never be confused. */
+export const CONTEXT_NATIVE = new TextEncoder().encode("koinos/tx/1");
 export const PK_BYTES = 1312, SIG_BYTES = 2420;
+export const NATIVE_TAG = 0x01, NATIVE_ENTRY_BYTES = 1 + PK_BYTES + SIG_BYTES; // 3733
 
 export function network(name = process.env.KOINOS_NETWORK || "testnet") {
   const n = NETWORKS[name];
@@ -32,7 +44,7 @@ export const sha256 = (u8) => Uint8Array.from(createHash("sha256").update(u8).di
 export const hex = (u8) => Buffer.from(u8).toString("hex");
 export const fromHex = (h) => Uint8Array.from(Buffer.from(h.replace(/^0x/, ""), "hex"));
 
-export function keyFile(net) { return new URL(`../.keys.${net}.json`, import.meta.url).pathname; }
+export function keyFile(net) { return fileURLToPath(new URL(`../.keys.${net}.json`, import.meta.url)); }
 
 /** Loads the key file: { account: {wif,address}, pq: {seedHex, publicKeyHex}, contractId? } */
 export function loadKeys(net) {
@@ -65,14 +77,28 @@ export function pqSignTxId(txIdHex, secretKey) {
 export function pqVerifyTxId(txIdHex, sig, publicKey) {
   return ml_dsa44.verify(sig, fromHex(txIdHex), publicKey, { context: CONTEXT });
 }
+/** Native path: the address of an ML-DSA-44 public key is derived exactly like a secp256k1 key's. */
+export function pqAddress(publicKey) {
+  return utils.bitcoinAddress(publicKey); // base58check( 0x00 || ripemd160( sha256( pk ) ) )
+}
+/** Native path: signature over the tx id with the chain's context, and the 3733-byte entry around it. */
+export function pqSignTxIdNative(txIdHex, secretKey) {
+  const id = fromHex(txIdHex);
+  if (id.length !== 34 || id[0] !== 0x12 || id[1] !== 0x20) throw new Error("tx id is not a sha2-256 multihash");
+  return ml_dsa44.sign(id, secretKey, { context: CONTEXT_NATIVE });
+}
+export function nativeEntry(publicKey, signature) {
+  if (publicKey.length !== PK_BYTES || signature.length !== SIG_BYTES) throw new Error("bad key or signature size");
+  return Uint8Array.from([NATIVE_TAG, ...publicKey, ...signature]);
+}
 /** Proof of possession for set_public_key: the NEW key signs the account's 25-byte address. */
 export function pqProofOfPossession(address, newSecretKey) {
   return ml_dsa44.sign(utils.decodeBase58(address), newSecretKey, { context: CONTEXT_POP });
 }
 
-export const abiPath = new URL("../dist/pqwallet.abi", import.meta.url).pathname;
-export const wasmPath = new URL("../dist/pqwallet.wasm", import.meta.url).pathname;
-const sumsPath = new URL("../dist/SHA256SUMS", import.meta.url).pathname;
+export const abiPath = fileURLToPath(new URL("../dist/pqwallet.abi", import.meta.url));
+export const wasmPath = fileURLToPath(new URL("../dist/pqwallet.wasm", import.meta.url));
+const sumsPath = fileURLToPath(new URL("../dist/SHA256SUMS", import.meta.url));
 
 /** The bytecode that gets uploaded, after checking it against dist/SHA256SUMS. */
 export function loadBytecode() {

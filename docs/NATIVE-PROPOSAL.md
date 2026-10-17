@@ -2,6 +2,10 @@
 
 Status: draft for discussion with the Koinos Foundation / Koinos Fund System. Written 2026-10-17.
 
+Implemented and proven on a private devnet the same day (koinos-chain fork, branch `ml-dsa-44`;
+`docs/NATIVE-PLAN.md` status, `docs/devnet-run.txt`): the B1 subset below (inline key, default authority
+only, no enum change) is working code with tests; items 1, 3, 4 and 5 are the B2 follow-up.
+
 ## Why
 `pqwallet` proves a post-quantum account works inside the current protocol, but it verifies in
 interpreted WASM and needs a contract per account. A native digital-signature type lets *every*

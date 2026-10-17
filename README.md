@@ -14,6 +14,7 @@ dist/        built artefacts with SHA256SUMS
 docs/        SPEC.md (contract spec), SECURITY.md (review + resolutions), NATIVE-PROPOSAL.md, NATIVE-PLAN.md,
              TESTING.md, THROUGHPUT.md (does post-quantum make the chain slower? measured answer)
 bench/       native verify timings behind THROUGHPUT.md and the proposed compute charge (runs in Docker)
+devnet/      private devnet for the koinos-chain fork (native ML-DSA-44): compose, genesis, KOIN, run.mjs
 HANDOVER.md  start here
 ```
 

@@ -1,5 +1,12 @@
 # Phase B plan: native ML-DSA-44 in koinos-chain
 
+**Status 2026-10-17: B1 done.** Fork branch `ml-dsa-44` in koinos-chain (commit on top of v1.5.2): verifier
+vendored, `check_authority` branch, 50/50 chain tests pass incl. the new `ml_dsa_44_signatures` case, and the
+devnet proved it end to end (`docs/devnet-run.txt`): a KOIN transfer signed only with a 3733-byte entry was
+mined, seven negative cases were rejected, the secp256k1 path is unchanged, and a mixed transaction works.
+Measured: +118,555 ticks and +3,669 bytes per transfer against secp256k1. Remaining B1 item: open the PR on
+koinos/koinos-chain (branch not pushed yet). Then B2.
+
 *Start here on the laptop. Written 2026-10-17 on the phone session that built and tested the
 contract route (see HANDOVER.md, docs/TESTING.md). This file is the handoff: it holds every fact
 the next session needs, because the phone's notes do not travel.*
@@ -62,7 +69,8 @@ for contracts, block signatures, and the koilib/Kondor signer.
   (execution_context.cpp ~229-341). The new branch runs native code outside the metered VM, so add
   an explicit `use_compute_bandwidth(...)` charge sized from a benchmark (measured 2026-10-17, see
   docs/THROUGHPUT.md section 3: the vendored reference verifier takes 2.6x a secp256k1 recovery, so charge
-  90,000 ticks, about three recoveries, not the ten first guessed; an AVX2 build would justify ~20,000).
+  three times the recover_public_key registry cost (88,890 ticks on mainnet), not the ten first guessed; an
+  AVX2 build would justify about two thirds of one recovery).
 
 ## Tests
 1. Unit tests in `tests/thunk_test.cpp` next to the existing `recover_public_key` (~2750) and

@@ -95,18 +95,23 @@ does in 70 µs, so 1 µs here is about 424 ticks. On that scale:
 
 | verifier | measured | fair charge in ticks | share of a 1.5 M tick transfer (two checks) |
 |---|---|---|---|
-| ML-DSA-44 reference C | 183 µs | ~78,000, round to **90,000** (three recoveries) | 12% |
+| ML-DSA-44 reference C | 183 µs | ~78,000, charged as **three recoveries** (88,890) | 12% |
 | ML-DSA-44 AVX2 | 45 µs | ~19,000 | 2.5% |
 | Falcon-512 | 78 µs | ~33,000 | 4.4% |
 
-Recommendation: vendor the reference code, charge 90,000 ticks, and record this table as the
-justification. The charge has to cover the slowest node allowed on the network; a later AVX2
+Recommendation: vendor the reference code, charge three times the `recover_public_key` registry
+cost (88,890 ticks on mainnet; expressed as a multiple so it follows the registry), and record this
+table as the justification. The charge has to cover the slowest node allowed on the network; a later AVX2
 build with runtime CPU detection can lower it. NATIVE-PLAN.md's placeholder of "about ten
 recoveries" (296,000 ticks) would be more than three times too high.
 
-Effect on a transfer's total compute: two ML-DSA checks at 90,000 replace two recoveries at
+Effect on a transfer's total compute: two ML-DSA checks at 88,890 replace two recoveries at
 29,630, so about 1.5 M ticks becomes about 1.62 M, an 8% rise. The compute ceiling in section 4
 moves from about 35 to about 32 transfers per block sustained. That is the whole speed cost.
+
+Confirmed on the devnet the same day (`docs/devnet-run.txt`): a KOIN transfer cost 409,273 ticks and
+310 bytes with secp256k1 and 527,828 ticks and 3,979 bytes with the native ML-DSA-44 entry, a difference
+of 118,555 ticks (two authority checks at three recoveries instead of one) and 3,669 bytes.
 
 ## 4. What the chain actually does today
 
@@ -148,7 +153,7 @@ Ordered by value for effort.
 1. **Price the ML-DSA verify from the benchmark, not from a guess.** NATIVE-PLAN.md suggests
    "about 10 secp256k1 recoveries" (296,000 ticks). That would be 40% of a transfer's compute
    across its two checks and would throttle post-quantum accounts through the compute budget for
-   no reason. Measured cost of the reference verifier is 2.6 recoveries; charge 90,000 ticks
+   no reason. Measured cost of the reference verifier is 2.6 recoveries; charge three recoveries
    (section 3) and lower it if an AVX2 build ships.
 2. **Keep the key off the wire after first use.** Tag the entry with its first byte
    (`0x01` = key + signature, `0x02` = signature only) and have the node store the public key

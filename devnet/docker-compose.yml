@@ -1,0 +1,81 @@
+# Private Koinos devnet for the native ML-DSA-44 path (koinos-chain fork, phase B1).
+#
+#   docker compose -f devnet/docker-compose.yml up -d        # chain = the fork image built by Dockerfile.test
+#   node devnet/run.mjs                                       # deploys KOIN, mints, runs the native transfer tests
+#   docker compose -f devnet/docker-compose.yml down -v       # wipe
+#
+# No p2p and no block producer: devnet/run.mjs builds and signs blocks itself with the genesis key
+# (the chain's default process_block_signature accepts the genesis key). Microservice versions are the
+# ones koinos/koinos pins for chain v1.5.2.
+services:
+  amqp:
+    image: rabbitmq:3-alpine
+    configs:
+      - source: amqp-config
+        target: /etc/rabbitmq/rabbitmq.conf
+
+  chain:
+    image: ${CHAIN_IMAGE:-koinos-chain-pq:dev}
+    depends_on:
+      - amqp
+    configs:
+      - source: koinos-config
+        target: /koinos/config.yml
+      - source: genesis-data
+        target: /koinos/chain/genesis_data.json
+    volumes:
+      - koinos-data:/koinos
+    command: --basedir=/koinos
+
+  mempool:
+    image: koinos/koinos-mempool:${MEMPOOL_TAG:-v1.5.0}
+    depends_on:
+      - amqp
+      - chain
+    configs:
+      - source: koinos-config
+        target: /koinos/config.yml
+    volumes:
+      - koinos-data:/koinos
+    command: --basedir=/koinos
+
+  block_store:
+    image: koinos/koinos-block-store:${BLOCK_STORE_TAG:-v1.1.0}
+    depends_on:
+      - amqp
+      - chain
+    configs:
+      - source: koinos-config
+        target: /koinos/config.yml
+    volumes:
+      - koinos-data:/koinos
+    command: --basedir=/koinos
+
+  jsonrpc:
+    image: koinos/koinos-jsonrpc:${JSONRPC_TAG:-v1.2.0}
+    depends_on:
+      - amqp
+      - chain
+    configs:
+      - source: koinos-config
+        target: /koinos/config.yml
+      - source: koinos-descriptors
+        target: /koinos/jsonrpc/descriptors/koinos_descriptors.pb
+    volumes:
+      - koinos-data:/koinos
+    ports:
+      - "127.0.0.1:${JSONRPC_PORT:-8080}:8080"
+    command: --basedir=/koinos
+
+configs:
+  amqp-config:
+    file: ./rabbitmq.conf
+  koinos-config:
+    file: ./config.yml
+  genesis-data:
+    file: ./genesis_data.json
+  koinos-descriptors:
+    file: ./koinos_descriptors.pb
+
+volumes:
+  koinos-data:
