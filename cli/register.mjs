@@ -1,6 +1,6 @@
 // Registers the ML-DSA-44 public key on the contract. Authorised by the secp256k1 key the first
 // time (bootstrap), or by the current ML-DSA key when rotating (pass --rotate-from-current).
-import { network, loadKeys, pqContract, pqKeysFromSeed, Signer, waitMined, buildTransaction, submit, pqSignTxId, b64url, hex, sha256 } from "./lib.mjs";
+import { network, loadKeys, pqContract, pqKeysFromSeed, Signer, waitMined, buildTransaction, submit, pqSignTxId, b64url, hex, sha256, utils } from "./lib.mjs";
 
 const net = network();
 const k = loadKeys(net.name);
@@ -8,7 +8,7 @@ const address = k.account.address;
 const pq = pqKeysFromSeed(k.pq.seedHex);
 const c = pqContract(net, address);
 const info = (await c.functions.get_info()).result;
-const { operation } = await c.functions.set_public_key({ public_key: Buffer.from(pq.publicKey).toString("base64") }, { onlyOperation: true });
+const { operation } = await c.functions.set_public_key({ public_key: utils.encodeBase64url(pq.publicKey) }, { onlyOperation: true });
 
 const tx = await buildTransaction(net, address, [operation], process.env.RC_LIMIT);
 if (!info.key_registered) {

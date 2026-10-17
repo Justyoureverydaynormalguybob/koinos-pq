@@ -1,5 +1,5 @@
 // Shows the account's balance, mana, contract state and PQ key status.
-import { network, loadKeys, balance, mana, fmtKoin, pqContract, pqKeysFromSeed, hex, sha256 } from "./lib.mjs";
+import { network, loadKeys, balance, mana, fmtKoin, pqContract, pqKeysFromSeed, hex, sha256, utils } from "./lib.mjs";
 const net = network();
 const k = loadKeys(net.name);
 const a = k.account.address;
@@ -17,6 +17,7 @@ console.log(`scheme    ${info.scheme}; key registered: ${info.key_registered}; v
 if (info.key_registered) {
   const onchain = (await c.functions.get_public_key()).result.value;
   const local = pqKeysFromSeed(k.pq.seedHex).publicKey;
-  const same = Buffer.from(onchain, "base64").equals(Buffer.from(local));
-  console.log(`on-chain key sha256 ${hex(sha256(Buffer.from(onchain, "base64")))} ${same ? "(matches local seed)" : "(DOES NOT MATCH local seed!)"}`);
+  const onchainBytes = utils.decodeBase64url(onchain);
+  const same = Buffer.from(onchainBytes).equals(Buffer.from(local));
+  console.log(`on-chain key sha256 ${hex(sha256(onchainBytes))} ${same ? "(matches local seed)" : "(DOES NOT MATCH local seed!)"}`);
 }
