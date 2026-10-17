@@ -46,11 +46,25 @@ and a 256 KiB stack at 64 KiB..~330 KiB. The AssemblyScript module is built with
 `--memoryBase 393216` so the two never overlap; `wasm-merge` fuses them into one module whose only
 import is `env.invoke_system_call`.
 
+## Transaction access
+The contract never calls `get_transaction()`. It reads `get_transaction_field("id")` and
+`get_transaction_field("signatures")` (a repeated field comes back as
+`message_value = Any(koinos.chain.list_type{values})`). Loading the whole transaction broke on a
+58 KB contract re-upload, which is itself a transaction this contract must authorise.
+
 ## Resource notes
-- SDK system-call buffer raised to 16 KiB (`System.setSystemBufferSize`) and dispatcher return
-  buffer to 8 KiB: a transaction with one ML-DSA signature does not fit the 1 KiB defaults.
-- Per-transaction network bandwidth: ~2.5 KB plus operations. Compute: see `docs/TESTING.md`
-  for measured `compute_bandwidth_used` on testnet (the chain limit is 287,500,000 per tx).
+- SDK system-call buffer raised to 16 KiB at module start (`System.setSystemBufferSize`, before
+  the dispatcher's `getArguments`) and dispatcher return buffer to 8 KiB: 1312-byte arguments and
+  2420-byte signatures do not fit the 1 KiB defaults. Found on testnet, not in the mock VM.
+- Each transfer triggers two `authorize` calls (payer check + the token contract's
+  `require_authority`), i.e. two ML-DSA verifications. Measured on testnet: compute 6.11M of the
+  287.5M limit (2.1%), rc_used 39.5M (0.39 KOIN of mana), network 2,668 bytes. A legacy
+  (secp256k1) bootstrap call measured compute 1.07M.
+- Mixed signature lists: when a transaction also triggers the chain's *default* secp256k1 rule
+  (only the final `lock` does), the 65-byte signature must come first: the default loop stops at
+  the first match but aborts with "unexpected signature length" on a 2420-byte entry.
+- Mana limit: do not set `rc_limit` to the whole available mana; the mempool reserves each pending
+  transaction's limit and refuses the next one with "insufficient pending account resources".
 
 ## Threat notes
 - Replay: the signed message is the tx id, which commits to chain id, nonce, payer, rc_limit and

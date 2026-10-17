@@ -1,0 +1,205 @@
+# testnet run 2026-10-17T11:30:43Z, chain id EiAIKVvm6-V2qmsmUvPJy09vCCLbtn9lHFpwrJbcTIEWRQ==
+
+$ node cli/fund.mjs 50   (earlier) tx 0x1220adf2b895de4aec3c8906a2f1e245df5b08b0115c0d3baa90d977488e18164f07
+
+$ node cli/deploy.mjs
+uploading pqwallet to 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t on testnet (balance 50.00000000 KOIN)
+tx 0x122054efe1b1466905691bfb32c8273571ad2c3c52d10f47c0f6bfde48bd64bdf198 submitted; rc_used 470381615
+mined in block 9288854
+upload authority still secp256k1 (run lock.mjs after testing)
+
+$ node cli/register.mjs
+/data/data/com.termux/files/home/koinos-pq/node_modules/koilib/lib/Contract.js:172
+                    throw new Error("signer not found");
+                          ^
+
+Error: signer not found
+    at functions.<computed> [as get_info] (/data/data/com.termux/files/home/koinos-pq/node_modules/koilib/lib/Contract.js:172:27)
+    at async file:///data/data/com.termux/files/home/koinos-pq/cli/register.mjs:10:15
+
+Node.js v24.18.0
+
+$ node cli/status.mjs
+network   testnet
+account   1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t
+balance   50.00000000 KOIN
+mana      45.29726255 KOIN
+contract  none uploaded yet
+no key registered yet: bootstrapping with the secp256k1 signature
+/data/data/com.termux/files/home/koinos-pq/node_modules/koilib/lib/Provider.js:282
+                throw new Error(JSON.stringify({
+                      ^
+
+Error: {"error":"insufficient pending account resources","code":104}
+    at Provider.call (/data/data/com.termux/files/home/koinos-pq/node_modules/koilib/lib/Provider.js:282:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Provider.sendTransaction (/data/data/com.termux/files/home/koinos-pq/node_modules/koilib/lib/Provider.js:615:24)
+    at async submit (file:///data/data/com.termux/files/home/koinos-pq/cli/lib.mjs:114:36)
+    at async file:///data/data/com.termux/files/home/koinos-pq/cli/register.mjs:23:21
+
+Node.js v24.18.0
+
+$ node cli/status.mjs
+network   testnet
+account   1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t
+balance   50.00000000 KOIN
+mana      45.30068732 KOIN
+contract  none uploaded yet
+no key registered yet: bootstrapping with the secp256k1 signature
+/data/data/com.termux/files/home/koinos-pq/node_modules/koilib/lib/Provider.js:282
+                throw new Error(JSON.stringify({
+                      ^
+
+Error: {"error":"insufficient pending account resources","code":104}
+
+Node.js v24.18.0
+
+$ node cli/status.mjs
+network   testnet
+account   1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t
+balance   50.00000000 KOIN
+mana      45.31254148 KOIN
+contract  uploaded; overrides: call=true tx=true upload=false
+scheme    ML-DSA-44 (FIPS 204), pure mode; key registered: false; verifications: 0
+no key registered yet: bootstrapping with the secp256k1 signature
+/data/data/com.termux/files/home/koinos-pq/node_modules/koilib/lib/Provider.js:282
+                throw new Error(JSON.stringify({
+                      ^
+
+Error: {"error":"return buffer is not large enough for the return value","code":105,"logs":["transaction reverted: return buffer is not large enough for the return value"]}
+
+Node.js v24.18.0
+
+$ node cli/status.mjs
+network   testnet
+account   1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t
+balance   50.00000000 KOIN
+mana      45.32290954 KOIN
+contract  uploaded; overrides: call=true tx=true upload=false
+scheme    ML-DSA-44 (FIPS 204), pure mode; key registered: false; verifications: 0
+
+# register attempt 1 reverted: 'return buffer is not large enough' (System.getArguments before buffer resize). Fixed: resize at module start. Re-upload (upload authority still secp256k1 = the recovery path working as designed).
+
+$ node cli/deploy.mjs
+uploading pqwallet to 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t on testnet (balance 50.00000000 KOIN)
+/data/data/com.termux/files/home/koinos-pq/node_modules/koilib/lib/Provider.js:282
+                throw new Error(JSON.stringify({
+                      ^
+
+Error: {"error":"return buffer is not large enough for the return value","code":-1,"logs":[]}
+    at Provider.call (/data/data/com.termux/files/home/koinos-pq/node_modules/koilib/lib/Provider.js:282:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Provider.sendTransaction (/data/data/com.termux/files/home/koinos-pq/node_modules/koilib/lib/Provider.js:615:24)
+    at async Contract.deploy (/data/data/com.termux/files/home/koinos-pq/node_modules/koilib/lib/Contract.js:306:42)
+    at async file:///data/data/com.termux/files/home/koinos-pq/cli/deploy.mjs:16:34
+
+Node.js v24.18.0
+
+$ RC_LIMIT=300000000 node cli/register.mjs
+no key registered yet: bootstrapping with the secp256k1 signature
+/data/data/com.termux/files/home/koinos-pq/node_modules/koilib/lib/Provider.js:282
+                throw new Error(JSON.stringify({
+                      ^
+
+Error: {"error":"return buffer is not large enough for the return value","code":105,"logs":["transaction reverted: return buffer is not large enough for the return value"]}
+
+Node.js v24.18.0
+
+$ node cli/status.mjs
+network   testnet
+account   1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t
+balance   50.00000000 KOIN
+mana      45.32782158 KOIN
+contract  uploaded; overrides: call=true tx=true upload=false
+scheme    ML-DSA-44 (FIPS 204), pure mode; key registered: false; verifications: 0
+
+# fix 2: authorize now reads only tx id + signatures via get_transaction_field; the previous contract could not process a 58 KB re-upload tx. Recovery = sponsored re-upload: issuer pays mana, account key authorises the upload.
+
+$ node cli/rescue-upload.mjs
+re-upload of pqwallet to 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t paid by 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp; tx 0x1220c50aee806b240f8823935fd6ca57eb36a4f949f98093e17d3d5ce12e82279b4e; 2 signatures
+submitted; rc_used 50658716; mined in block 9288985
+
+$ RC_LIMIT=300000000 node cli/register.mjs
+no key registered yet: bootstrapping with the secp256k1 signature
+tx 0x1220a9ee3af39c226dc1aa7c41f071d0713acc4d211bb42fd0c1cb3e27d5cae6dd18 submitted; rc_used 17386798; compute 1065999; network 1571
+mined in block 9288987
+registered ML-DSA-44 key sha256 4f4583ba0afdbbe67409ea6ff4a8dd8f9bf0e18cf933b0d4d7ecbd6401d71709
+
+$ node cli/status.mjs
+network   testnet
+account   1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t
+balance   50.00000000 KOIN
+mana      45.17016309 KOIN
+contract  uploaded; overrides: call=true tx=true upload=false
+scheme    ML-DSA-44 (FIPS 204), pure mode; key registered: true; verifications: 0
+on-chain key sha256 4f4583ba0afdbbe67409ea6ff4a8dd8f9bf0e18cf933b0d4d7ecbd6401d71709 (matches local seed)
+
+$ RC_LIMIT=300000000 node cli/send.mjs 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp 1 
+--ok: sending 1.00000000 KOIN 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t -> 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp; tx 0x1220196dd4c08defd36073cf67a1acc08630fc21a8c1a81308e193a2e57b3d4092c0; 1 signature(s), 2420 bytes
+accepted by mempool; rc_used 39481184; compute 6110092; network 2668
+mined in block 9288994; balance 50.00000000 KOIN -> 49.00000000 KOIN
+
+$ RC_LIMIT=300000000 node cli/send.mjs 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp 1 --ecdsa
+--ecdsa: sending 1.00000000 KOIN 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t -> 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp; tx 0x12205490e9050eb0fde6ac17a1b16844d3713e9eaa5c24dcfb225b11ce02d15ce52f; 1 signature(s), 65 bytes
+rejected as expected: {"error":"account 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t has not authorized transaction","account":"1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t","code":-200,"logs":[]}
+
+$ RC_LIMIT=300000000 node cli/send.mjs 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp 1 --bad-sig
+--bad-sig: sending 1.00000000 KOIN 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t -> 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp; tx 0x12205490e9050eb0fde6ac17a1b16844d3713e9eaa5c24dcfb225b11ce02d15ce52f; 1 signature(s), 2420 bytes
+rejected as expected: {"error":"account 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t has not authorized transaction","account":"1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t","code":-200,"logs":[]}
+
+$ RC_LIMIT=300000000 node cli/send.mjs 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp 1 --no-sig
+--no-sig: sending 1.00000000 KOIN 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t -> 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp; tx 0x12205490e9050eb0fde6ac17a1b16844d3713e9eaa5c24dcfb225b11ce02d15ce52f; 0 signature(s), 0 bytes
+rejected as expected: {"error":"missing expected field in transaction: signature_data","code":-1002,"field":"signature_data","transaction_id":"0x12205490e9050eb0fde6ac17a1b16844d3713e9eaa5c24dcfb225b11ce02d15ce52f"}
+
+$ RC_LIMIT=1500000000 node cli/lock.mjs
+/data/data/com.termux/files/home/koinos-pq/node_modules/koilib/lib/Provider.js:282
+                throw new Error(JSON.stringify({
+                      ^
+
+Error: {"error":"unexpected signature length","code":-202,"logs":[]}
+
+Node.js v24.18.0
+
+$ RC_LIMIT=300000000 node cli/send.mjs 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp 0.5   (after lock)
+--ok: sending 0.50000000 KOIN 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t -> 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp; tx 0x12204b817ea60abbabc06f137d5d5ab9f43f2581df91fd6834b39064031c5cc3c23a; 1 signature(s), 2420 bytes
+accepted by mempool; rc_used 39481916; compute 6112530; network 2668
+mined in block 9289002; balance 49.00000000 KOIN -> 48.50000000 KOIN
+
+$ RC_LIMIT=300000000 node cli/send.mjs 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp 0.5 --ecdsa   (after lock)
+--ecdsa: sending 0.50000000 KOIN 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t -> 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp; tx 0x1220dca81e8a7c2f9314bf018e91aae46e1bc6571d30a2837fbc9476058c122f92ed; 1 signature(s), 65 bytes
+rejected as expected: {"error":"account 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t has not authorized transaction","account":"1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t","code":-200,"logs":[]}
+
+$ node cli/status.mjs
+network   testnet
+account   1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t
+balance   48.50000000 KOIN
+mana      42.88550907 KOIN
+contract  uploaded; overrides: call=true tx=true upload=false
+scheme    ML-DSA-44 (FIPS 204), pure mode; key registered: true; verifications: 4
+on-chain key sha256 4f4583ba0afdbbe67409ea6ff4a8dd8f9bf0e18cf933b0d4d7ecbd6401d71709 (matches local seed)
+
+# lock attempt 1 failed: 'unexpected signature length' - the default secp256k1 upload check aborts on a 2420-byte signature. Fix: lock tx carries [secp256k1, ML-DSA-44] in that order.
+
+$ RC_LIMIT=1500000000 node cli/lock.mjs
+lock tx 0x12201f55491c8f586d843b034e2b671c3aa428f4a7323f97284b02d098f7ea5524f3: 2 signatures (secp256k1 for the last default upload check, ML-DSA-44 for the payer)
+tx 0x12201f55491c8f586d843b034e2b671c3aa428f4a7323f97284b02d098f7ea5524f3 submitted; rc_used 83190866; compute 3267435
+mined in block 9289020
+done: call, transaction and upload authority are all governed by the ML-DSA-44 key
+
+$ RC_LIMIT=300000000 node cli/send.mjs 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp 0.5   (after lock)
+--ok: sending 0.50000000 KOIN 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t -> 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp; tx 0x12204f5f37f34f864468b453f45e8b9f34edd1d1ea5c96a190dd2817197658571a76; 1 signature(s), 2420 bytes
+accepted by mempool; rc_used 39477884; compute 6111858; network 2668
+mined in block 9289024; balance 48.50000000 KOIN -> 48.00000000 KOIN
+
+$ RC_LIMIT=300000000 node cli/send.mjs 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp 0.5 --ecdsa   (after lock)
+--ecdsa: sending 0.50000000 KOIN 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t -> 1JZ2fwcuwRPLSJd3cdNpwLGkLAPktVUkqp; tx 0x1220f1415c859f768e4f87d31b812f5d338f7a242deeb6a8f43d6987e7710cebbe64; 1 signature(s), 65 bytes
+rejected as expected: {"error":"account 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t has not authorized transaction","account":"1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t","code":-200,"logs":[]}
+
+$ node cli/status.mjs
+network   testnet
+account   1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t
+balance   48.00000000 KOIN
+mana      41.16486048 KOIN
+contract  uploaded; overrides: call=true tx=true upload=true
+scheme    ML-DSA-44 (FIPS 204), pure mode; key registered: true; verifications: 7
+on-chain key sha256 4f4583ba0afdbbe67409ea6ff4a8dd8f9bf0e18cf933b0d4d7ecbd6401d71709 (matches local seed)

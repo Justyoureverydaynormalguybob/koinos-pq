@@ -12,7 +12,7 @@
 //  * Verification runs in the vendored FIPS 204 reference code (wasm/dilithium.wasm),
 //    linked into this module by wasm-merge; see scripts/build.sh.
 
-import { Arrays, Crypto, Protobuf, Storage, System, authority, protocol } from "@koinos/sdk-as";
+import { Arrays, Crypto, Protobuf, Storage, System, authority, value } from "@koinos/sdk-as";
 import { pqwallet } from "./proto/pqwallet";
 
 // Provided by wasm/dilithium.wasm after wasm-merge. Pointers are offsets in this module's memory.
@@ -26,20 +26,22 @@ declare function mldsa44_verify(
 ): i32;
 
 export const PK_BYTES: i32 = 1312;
+/** Room for a transaction with up to ~6 ML-DSA-44 signatures plus header and operations. */
+export const SYSTEM_BUFFER_BYTES: u32 = 16384;
+// Runs when the module starts, before the dispatcher calls System.getArguments(): a
+// set_public_key call carries 1312 bytes of arguments, more than the SDK's 1 KiB default.
+System.setSystemBufferSize(SYSTEM_BUFFER_BYTES);
 export const SIG_BYTES: i32 = 2420;
 export const CONTEXT: string = "koinos/pqwallet/1";
 const CONFIG_SPACE_ID: u32 = 0;
-/** Room for a transaction with up to ~6 ML-DSA-44 signatures plus header and operations. */
-export const SYSTEM_BUFFER_BYTES: u32 = 16384;
 
 export class Pqwallet {
   contractId: Uint8Array;
   config: Storage.Obj<pqwallet.config_object>;
 
   constructor() {
-    // A transaction carrying ML-DSA-44 signatures (2420 bytes each) does not fit the SDK's
-    // default 1 KiB system-call buffer; System.getTransaction() needs room for the whole tx.
-    System.setSystemBufferSize(SYSTEM_BUFFER_BYTES);
+    // Also here, in case a caller constructs the class without the module start having run.
+    if (System.getSystemBufferSize() < SYSTEM_BUFFER_BYTES) System.setSystemBufferSize(SYSTEM_BUFFER_BYTES);
     const contractId = System.getContractId();
     this.contractId = contractId;
     this.config = new Storage.Obj(
@@ -64,14 +66,38 @@ export class Pqwallet {
     return r == 1;
   }
 
+  /** Transaction id (34-byte multihash) without loading the whole transaction. */
+  static txId(): Uint8Array | null {
+    const f = System.getTransactionField("id");
+    if (f == null) return null;
+    const id = f!.bytes_value;
+    return id.length == 34 ? id : null;
+  }
+
+  /**
+   * Transaction signatures via get_transaction_field("signatures"). Only this field is loaded, so a
+   * transaction carrying large operations (for example a 58 KB contract re-upload) still fits the
+   * system-call buffer. A repeated field comes back as message_value = Any(list_type{values}).
+   */
+  static txSignatures(): Array<Uint8Array> {
+    const out = new Array<Uint8Array>();
+    const f = System.getTransactionField("signatures");
+    if (f == null) return out;
+    const any = f!.message_value;
+    if (any == null) return out;
+    const packed = any!.value;
+    if (packed == null) return out;
+    const list = Protobuf.decode<value.list_type>(packed!, value.list_type.decode);
+    for (let i = 0; i < list.values.length; i++) out.push(list.values[i].bytes_value);
+    return out;
+  }
+
   /** Legacy rule: some signature recovers (secp256k1) to this address. */
-  legacyAuthorized(tx: protocol.transaction): bool {
-    const id = tx.id;
-    if (id == null) return false;
-    for (let i = 0; i < tx.signatures.length; i++) {
-      const sig = tx.signatures[i];
+  legacyAuthorized(id: Uint8Array, sigs: Array<Uint8Array>): bool {
+    for (let i = 0; i < sigs.length; i++) {
+      const sig = sigs[i];
       if (sig.length != 65) continue;
-      const pub = System.recoverPublicKey(sig, id!);
+      const pub = System.recoverPublicKey(sig, id);
       if (pub == null) continue;
       const addr = Crypto.addressFromPublicKey(pub!);
       if (Arrays.equal(addr, this.contractId)) return true;
@@ -81,16 +107,16 @@ export class Pqwallet {
 
   /** The one rule everything hangs on. */
   authorizedByTransaction(): bool {
+    const id = Pqwallet.txId();
+    if (id == null) return false;
+    const sigs = Pqwallet.txSignatures();
     const cfg = this.config.get()!;
-    const tx = System.getTransaction();
     const pk = cfg.public_key;
     if (pk == null || pk!.length != PK_BYTES) {
-      return this.legacyAuthorized(tx);
+      return this.legacyAuthorized(id!, sigs);
     }
-    const id = tx.id;
-    if (id == null) return false;
-    for (let i = 0; i < tx.signatures.length; i++) {
-      if (Pqwallet.verifyMlDsa44(tx.signatures[i], id!, pk!)) {
+    for (let i = 0; i < sigs.length; i++) {
+      if (Pqwallet.verifyMlDsa44(sigs[i], id!, pk!)) {
         cfg.verifications += 1;
         this.config.put(cfg);
         return true;

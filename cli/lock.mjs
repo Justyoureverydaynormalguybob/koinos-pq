@@ -1,7 +1,10 @@
-// Final step: re-upload with upload authority also governed by the contract, authorised by the
-// ML-DSA-44 key. After this, no secp256k1 key can touch the account at all.
+// Final step: re-upload with upload authority also governed by the contract. Until this moment
+// upload authority is still the chain's default secp256k1 rule, so this one transaction needs BOTH
+// signatures: the secp256k1 one FIRST (the default rule stops at the first matching 65-byte
+// signature and would abort on a 2420-byte one), and the ML-DSA-44 one for the payer check that our
+// contract performs. After this, no secp256k1 key can touch the account at all.
 import { readFileSync } from "node:fs";
-import { network, loadKeys, saveKeys, pqContract, pqKeysFromSeed, wasmPath, loadAbi, buildTransaction, submit, pqSignTxId, b64url, waitMined, utils } from "./lib.mjs";
+import { network, loadKeys, saveKeys, pqContract, pqKeysFromSeed, wasmPath, loadAbi, buildTransaction, submit, pqSignTxId, b64url, waitMined, utils, Signer } from "./lib.mjs";
 
 const net = network();
 const k = loadKeys(net.name);
@@ -22,7 +25,10 @@ const operation = {
   },
 };
 const tx = await buildTransaction(net, address, [operation], process.env.RC_LIMIT);
-tx.signatures = [b64url(pqSignTxId(tx.id, pq.secretKey))];
+const legacy = Signer.fromWif(k.account.wif);
+const withLegacy = await legacy.signTransaction({ ...tx, signatures: [] });
+tx.signatures = [...withLegacy.signatures, b64url(pqSignTxId(tx.id, pq.secretKey))];
+console.log(`lock tx ${tx.id}: ${tx.signatures.length} signatures (secp256k1 for the last default upload check, ML-DSA-44 for the payer)`);
 const { receipt } = await submit(net, tx);
 console.log(`tx ${tx.id} submitted; rc_used ${receipt.rc_used}; compute ${receipt.compute_bandwidth_used}`);
 console.log(`mined in block ${await waitMined(net, tx.id)}`);

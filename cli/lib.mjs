@@ -67,7 +67,15 @@ export function pqVerifyTxId(txIdHex, sig, publicKey) {
 
 export const abiPath = new URL("../contract/abi/pqwallet.abi", import.meta.url).pathname;
 export const wasmPath = new URL("../contract/build/release/pqwallet.wasm", import.meta.url).pathname;
-export function loadAbi() { return JSON.parse(readFileSync(abiPath, "utf8")); }
+/** The Koinos ABI file uses kebab-case keys; koilib wants entry_point (number) and read_only. */
+export function loadAbi() {
+  const abi = JSON.parse(readFileSync(abiPath, "utf8"));
+  for (const m of Object.values(abi.methods)) {
+    if (m["entry-point"] !== undefined && m.entry_point === undefined) m.entry_point = Number(m["entry-point"]);
+    if (m["read-only"] !== undefined && m.read_only === undefined) m.read_only = m["read-only"];
+  }
+  return abi;
+}
 
 export function pqContract(net, address, signer) {
   return new Contract({ id: address, abi: loadAbi(), provider: net.provider, signer });
@@ -81,13 +89,14 @@ export async function restGet(net, path) {
   if (!r.ok) throw new Error(`${path}: HTTP ${r.status} ${await r.text()}`);
   return r.json();
 }
+/** Balance in base units (1e-8 KOIN) via the token contract; the REST endpoint reports whole KOIN. */
 export async function balance(net, address) {
-  const j = await restGet(net, `/account/${address}/balance/${net.koin}`);
-  return BigInt(j.value || "0");
+  const { result } = await koinContract(net).functions.balanceOf({ owner: address });
+  return BigInt((result && result.value) || "0");
 }
+/** Available mana in base units. */
 export async function mana(net, address) {
-  const j = await restGet(net, `/account/${address}/mana`);
-  return BigInt(j.value || "0");
+  return BigInt(await net.provider.getAccountRc(address));
 }
 export const fmtKoin = (v) => `${(Number(v) / 1e8).toFixed(8)} KOIN`;
 
@@ -97,7 +106,14 @@ export const fmtKoin = (v) => `${(Number(v) / 1e8).toFixed(8)} KOIN`;
  */
 export async function buildTransaction(net, payer, operations, rcLimit) {
   const tx = { header: { payer }, operations, signatures: [] };
-  if (rcLimit) tx.header.rc_limit = String(rcLimit);
+  if (!rcLimit) {
+    // Not the whole mana: the mempool reserves each pending tx's rc_limit, and asking for
+    // everything fails with "insufficient pending account resources" if anything is pending.
+    const avail = BigInt(await net.provider.getAccountRc(payer));
+    const cap = 20n * 100000000n; // 20 KOIN of mana is plenty for any single pqwallet tx
+    rcLimit = avail / 2n < cap ? avail / 2n : cap;
+  }
+  tx.header.rc_limit = String(rcLimit);
   await Transaction.prepareTransaction(tx, net.provider, payer);
   return tx; // tx.id is "0x1220..." hex
 }
@@ -105,8 +121,30 @@ export async function submit(net, tx) {
   const { receipt, transaction } = await net.provider.sendTransaction(tx);
   return { receipt, transaction };
 }
-export async function waitMined(net, txId, timeoutMs = 90000) {
-  return net.provider.wait(txId, "byBlock", timeoutMs);
+export async function waitMined(net, txId, timeoutMs = 120000) {
+  const r = await net.provider.wait(txId, "byBlock", timeoutMs);
+  return typeof r === "object" && r !== null ? (r.blockNumber ?? r.blockId ?? JSON.stringify(r)) : r;
 }
 export function b64url(u8) { return utils.encodeBase64url(u8); }
+
+/** Reads the chain's contract_metadata_object for an address (authority override flags). */
+export async function contractMetadata(net, address) {
+  const addr = utils.decodeBase58(address);
+  const args = new Uint8Array([0x0a, addr.length, ...addr]);
+  const r = await net.provider.call("chain.invoke_system_call", { name: "get_contract_metadata", args: utils.encodeBase64url(args) });
+  if (!r || !r.value) return null;
+  const b = utils.decodeBase64url(r.value);
+  // get_contract_metadata_result { contract_metadata_object value = 1 }; object fields:
+  // 1 hash, 2 system, 3 authorizes_call_contract, 4 authorizes_transaction_application, 5 authorizes_upload_contract
+  const varint = (i) => { let s = 0, v = 0; for (;;) { const c = b[i++]; v |= (c & 0x7f) << s; s += 7; if (c < 0x80) return [v, i]; } };
+  let i = 0, out = { hash: null, authorizes_call_contract: false, authorizes_transaction_application: false, authorizes_upload_contract: false };
+  const [tag0, i0] = varint(i); if (tag0 >>> 3 !== 1) return null;
+  const [len, i1] = varint(i0); i = i1; const end = i + len;
+  while (i < end) {
+    const [tag, j] = varint(i); const f = tag >>> 3, wt = tag & 7; i = j;
+    if (wt === 2) { const [l, k] = varint(i); i = k; if (f === 1) out.hash = utils.toHexString(b.slice(i, i + l)); i += l; }
+    else { const [v, k] = varint(i); i = k; if (f === 3) out.authorizes_call_contract = !!v; if (f === 4) out.authorizes_transaction_application = !!v; if (f === 5) out.authorizes_upload_contract = !!v; }
+  }
+  return out;
+}
 export { Signer, Contract, Transaction, utils };
