@@ -1,6 +1,7 @@
 # Proposal: native ML-DSA-44 in koinos-chain
 
-Status: draft for discussion with the Koinos Foundation / Koinos Fund System. Written 2026-10-17.
+Status: draft for discussion with the Koinos Foundation / Koinos Fund System. Written 2026-10-17,
+updated 2026-10-18 with the contract route's node-cost finding (see "Why").
 
 Implemented and proven on a private devnet the same day (koinos-chain fork, branch `ml-dsa-44`;
 `docs/NATIVE-PLAN.md` status, `docs/devnet-run.txt`): the B1 subset below (inline key, default authority
@@ -11,6 +12,26 @@ only, no enum change) is working code with tests; items 1, 3, 4 and 5 are the B2
 interpreted WASM and needs a contract per account. A native digital-signature type lets *every*
 account go post-quantum with no contract, at native speed, and is a prerequisite for post-quantum
 block production.
+
+The security review of the contract route (2026-10-18) adds a second reason: node cost that a
+contract cannot remove.
+
+- Signatures are not covered by the transaction id, and an authority contract can only check them
+  in interpreted WASM, about 6M ticks per ML-DSA-44 check.
+- Anyone can send nodes transactions that name a `pqwallet` account as payer and carry junk
+  signatures. Each forces up to six such checks, and none is charged: a transaction whose payer
+  authority fails is rejected, not included. No funds are at risk, but the work is free to cause.
+- A contract can cut this from six checks to one, at the price of breaking transactions with more
+  than one post-quantum signer, but not to zero. One check in interpreted WASM is the floor for any
+  authority contract.
+- Native verification removes it at the root. The node charges three secp256k1 recoveries
+  (88,890 ticks) for an ML-DSA-44 check, roughly 70 times less than the contract route pays; the
+  measured cost is 2.6 recoveries with the reference C, 0.64 with AVX2.
+- Per byte a spammer sends, a junk ML-DSA-44 entry (3,733 bytes for about 2.6 recoveries of work)
+  costs a node less than a junk secp256k1 signature does today (65 bytes for one). So the native
+  route adds no amplification the chain does not already accept.
+
+Details: https://github.com/Justyoureverydaynormalguybob/koinos-pq-wallet/blob/master/docs/SECURITY.md
 
 ## Change set (all in the open repos)
 1. **koinos-proto** `koinos/chain/chain.proto`: `enum dsa { ecdsa_secp256k1 = 0; ml_dsa_44 = 1; }`.
