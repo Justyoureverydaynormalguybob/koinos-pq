@@ -1,0 +1,12 @@
+FYI up front: I'm not a developer, I built this with an AI coding assistant and most of it goes over my head. It needs checking by people who know koinos-chain. Please treat it as a starting point, not a finished thing.
+
+Post-quantum accounts on Koinos, no fork needed. A contract you upload to your own address so the account is authorised only by an ML-DSA-44 signature (NIST FIPS 204) instead of secp256k1, using the existing authorize override.
+
+Proven on Harbinger: account 1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t is locked to a post-quantum key, PQ-signed transfers get mined, secp256k1 attempts are refused, key rotation and a contract upgrade under the PQ key both worked. Tx ids in docs/TESTING.md.
+
+Cost is about 10x a normal transfer (6.1M compute, 2.7 KB), so roughly 47 per block. Fine for accounts, not for the whole chain; there is a draft proposal for native support in docs/NATIVE-PROPOSAL.md.
+
+Caveats: no professional audit, it protects an account not the chain (block production is still secp256k1), and no wallet can sign ML-DSA yet, so the CLI is the wallet.
+
+MIT, take it or break it: https://github.com/Justyoureverydaynormalguybob/koinos-pq
+Start with HANDOVER.md. Reviews very welcome.
