@@ -104,6 +104,14 @@ nested calls unless the holder allow-lists them.
   live run in `docs/testnet-run.txt`. The lesson for anyone extending this: mock VM tests are
   necessary, a testnet life cycle is the real test.
 
+**Mainnet, 2026-10-18.** The contract route is live on mainnet. Account
+`1LQYsdpGuA3nwU5G1jANCnMWs3yYWfHwkQ` was set up from the browser wallet
+(github.com/Justyoureverydaynormalguybob/koinos-pq-wallet): upload 44.9 KOIN of mana, registration 2.9,
+then a 1 KOIN transfer authorised only by a 2,420-byte ML-DSA-44 signature, transaction
+`0x12206b839a6fa5c9ac9a0a90ba4fc7a2cd3fb2786bc4927f3d59ab448a45d3726244`, block 40,318,335, succeeded
+(mana 316,332,332, compute 6,071,053 ticks, 2,668 bytes). Note for anyone touching mainnet: KOIN is at
+`19GYjDBVXU7keLbYvMLazsGQn3GTWHjHkK` now; the old `15DJN4a8…` address refuses state reads.
+
 ## 6. Where to go next
 
 **Phase B1 is done (2026-10-17).** The koinos-chain fork (branch `ml-dsa-44`) verifies ML-DSA-44 natively:
