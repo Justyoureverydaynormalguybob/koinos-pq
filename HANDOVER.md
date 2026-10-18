@@ -92,8 +92,10 @@ nested calls unless the holder allow-lists them.
 - **Dapps that pull funds.** A DEX or similar contract that moves tokens out of the account from
   inside its own code is refused until you allow-list it (`npm run allow -- <contract> on`).
   Ordinary transfers and anything you place directly in a transaction need nothing.
-- **Wallet support.** Kondor and other wallets cannot produce ML-DSA signatures yet. The CLI is
-  the wallet for now. A browser signer is a small job: `@noble/post-quantum` runs in browsers.
+- **Wallet support.** Kondor cannot produce ML-DSA signatures, and Kondor 2 is closed source. The
+  wallet is github.com/Justyoureverydaynormalguybob/koinos-pq-wallet: a web app, and a browser
+  extension that gives pages the same `window.kondor` interface (kondor-js, MIT), so existing dapps
+  work with a post-quantum account unchanged. Both sit on koinos-pq-core (the signing rules).
 - **Mainnet.** Deploying costs nothing beyond mana but the account is then unusual: any dapp that
   calls `require_authority` on it works (the rule is the same, the signature kind differs), but
   nothing that expects to *recover* a public key from the account's signature will.
@@ -129,7 +131,8 @@ because Koinos is compute-bound) and lists what to design in so it stays fast.
 2. Propose `docs/NATIVE-PROPOSAL.md` to the Koinos Foundation / Koinos Fund System: a native
    `ml_dsa_44` entry in the chain's `dsa` enum would make every account able to go post-quantum
    with no contract, at native speed, and is a prerequisite for post-quantum block production.
-3. A Kondor or passkey-style signer using the same seed format.
+3. Done: the koinos-pq-wallet extension signs for dapps through `window.kondor` (proven end to end
+   on the devnet, 2026-10-18). Next for it: icons and a store listing, per-site permissions.
 
 ## 7. Reproducing from a clean machine
 
