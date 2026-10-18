@@ -29,7 +29,7 @@ const lenDelim = (field, buf) => Buffer.concat([Buffer.from([(field << 3) | 2]),
 
 const example = JSON.parse(readFileSync(here("../../koinos-devnet/config-example/genesis_data.json"), "utf8"));
 const byKey = Object.fromEntries(example.entries.filter((e) => e.space && e.space.system && !e.space.zone).map((e) => [e.key, e]));
-const copied = ["resource_limit_data", "max_account_resources", "protocol_descriptor", "block_hash_code"].map((n) => {
+const copied = ["resource_limit_data", "protocol_descriptor", "block_hash_code"].map((n) => {
   const e = byKey[keyOf(n)];
   if (!e) throw new Error(`example genesis lacks ${n}`);
   return { space: { system: true }, key: e.key, value: e.value };
@@ -48,6 +48,10 @@ const out = {
   entries: [
     { space: { system: true }, key: keyOf("genesis_key"), value: Buffer.from(utils.decodeBase58(genesis.getAddress())).toString("base64") },
     ...copied,
+    // max_account_resources { uint64 value = 1 }: 100 KOIN of rc for every account. Mainnet's example says 10,000,000
+    // (0.1 KOIN), which the default thunks never regenerate and the mempool keeps reserved until irreversibility,
+    // so a test account could only ever send a couple of transactions.
+    { space: { system: true }, key: keyOf("max_account_resources"), value: Buffer.concat([Buffer.from([0x08]), varint(10_000_000_000n)]).toString("base64") },
     { space: { system: true }, key: keyOf("compute_bandwidth_registry"), value: registry.toString("base64") },
   ],
 };
@@ -57,5 +61,5 @@ writeFileSync(here("genesis_data.json"), JSON.stringify(out, null, 2) + "\n");
 const rl = Buffer.from(byKey[keyOf("resource_limit_data")].value, "base64");
 const fields = {}; for (let i = 0; i < rl.length;) { const f = rl[i] >> 3; i++; let v = 0n, s = 0n; for (;;) { const b = rl[i++]; v |= BigInt(b & 0x7f) << s; s += 7n; if (b < 0x80) break; } fields[f] = v; }
 console.log(`wrote devnet/genesis_data.json: genesis key ${genesis.getAddress()}, KOIN deployer ${Signer.fromWif(KOIN_WIF).getAddress()}, ${entries.length} thunk prices`);
-console.log(`resource limits per block: disk ${fields[1]} (cost ${fields[2]}), network ${fields[3]} (cost ${fields[4]}), compute ${fields[5]} (cost ${fields[6]}); max_account_resources ${Buffer.from(byKey[keyOf("max_account_resources")].value, "base64").toString("hex")}`);
+console.log(`resource limits per block: disk ${fields[1]} (cost ${fields[2]}), network ${fields[3]} (cost ${fields[4]}), compute ${fields[5]} (cost ${fields[6]}); max_account_resources 10,000,000,000 (100 KOIN)`);
 }
