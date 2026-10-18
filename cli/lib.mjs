@@ -15,7 +15,10 @@ export const NETWORKS = {
   mainnet: {
     rpc: ["https://api.koinos.io/jsonrpc"],
     rest: "https://api.koinos.io/v1",
-    koin: "15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL",
+    // KOIN moved to this contract (VHP: 12Y5vW6gk8GceH53YfRkRre2Rrcsgw7Naq). The original
+    // 15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL still answers name/symbol but every state read on it fails
+    // with "user code cannot access system space" (checked 2026-10-18).
+    koin: "19GYjDBVXU7keLbYvMLazsGQn3GTWHjHkK",
     explorer: "https://koinosblocks.com",
   },
   // Private devnet running the koinos-chain fork (devnet/docker-compose.yml). KOIN is the local-koinos

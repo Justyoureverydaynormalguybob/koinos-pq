@@ -119,6 +119,9 @@ Sampled about 6,800 mainnet blocks in windows between heights 39,800,000 and 40,
 `block_store.get_blocks_by_height` on 2026-10-17:
 
 - About 50 transactions in 6,800 blocks, under 0.01 per block. Every signature was 65 bytes.
+- The busiest contract in those samples, 19GYjDBVXU7keLbYvMLazsGQn3GTWHjHkK, is KOIN itself (KOIN moved
+  there from 15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL; found out on 2026-10-18), so the single-call transactions
+  at about 1.6 M ticks and 343 bytes are plain KOIN transfers, not dapp calls as first assumed.
 - Per transaction: 290 to 1,687 bytes of network bandwidth (most 316 to 568), and 0.6 M to
   9.4 M compute ticks. A single contract call is typically 1.2 M to 1.7 M; the cheapest seen was
   615 k; two-operation dapp transactions run 6 M to 9 M.
