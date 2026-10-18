@@ -24,7 +24,7 @@ not money.
 | Piece | What it is | How it was verified |
 |---|---|---|
 | `wasm/dilithium.wasm` | The official FIPS 204 reference C code (PQ-Crystals), verify-only, compiled to plain WebAssembly MVP so the Koinos VM (Fizzy) accepts it. 10 KB. | All 15 NIST ACVP ML-DSA-44 signature-verification vectors agree (12 of them are must-reject cases). 25 random keypairs from an independent implementation (`@noble/post-quantum`) verify, and every tamper case (flipped bit, wrong key, wrong message, wrong context, truncated) is rejected. |
-| `contract/` | The account contract (`Pqwallet`). Entry points: `authorize` (what the chain calls), `set_public_key`, `get_public_key`, `get_info`. | 7 tests in the Koinos mock VM with the real verifier linked in: legacy fallback before a key is set, registration, every rejection case, replay to another tx id, key rotation, counter. |
+| `contract/` | The account contract (`Pqwallet`). Entry points: `authorize` (what the chain calls), `set_public_key`, `get_public_key`, `get_info`, `set_allowed_caller`, `get_allowed_caller`. | 10 tests in the Koinos mock VM with the real verifier linked in: buffer size, legacy fallback before a key is set, registration with proof of possession, nested-call refusal, allow-list, every rejection case, replay to another tx id, key rotation. |
 | `cli/` | Scripts that run the whole life cycle on testnet. | Live testnet run, see `docs/TESTING.md`. |
 
 Lineage: the design is what Soqucoin did for a UTXO chain, moved to Koinos's account model.
@@ -100,7 +100,10 @@ nested calls unless the holder allow-lists them.
   calls `require_authority` on it works (the rule is the same, the signature kind differs), but
   nothing that expects to *recover* a public key from the account's signature will.
 - **Not audited.** The verifier is the NIST reference code, unmodified, with public test vectors.
-  The contract around it is ~160 lines and tested, but has not had a third-party audit.
+  The contract around it is ~220 lines and tested, but has not had a third-party audit. An internal
+  review on 2026-10-18 found no way to move an account without its current key; its design limits
+  (allow-list scope, signature padding, re-upload by the key holder) are listed in the wallet repo's
+  `docs/SECURITY.md`.
 - **Two bugs only testnet found.** The SDK's 1 KiB system-call buffer, and reading the whole
   transaction (which fails on a large re-upload). Both are fixed and both are now covered by the
   live run in `docs/testnet-run.txt`. The lesson for anyone extending this: mock VM tests are
