@@ -19,7 +19,7 @@ export const NETWORKS = {
     // 15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL still answers name/symbol but every state read on it fails
     // with "user code cannot access system space" (checked 2026-10-18).
     koin: "19GYjDBVXU7keLbYvMLazsGQn3GTWHjHkK",
-    explorer: "https://koinosblocks.com",
+    explorer: "https://koinosscan.com",
   },
   // Private devnet running the koinos-chain fork (devnet/docker-compose.yml). KOIN is the local-koinos
   // testnet build uploaded by devnet/run.mjs to the address of its dev key; blocks are produced on demand.
