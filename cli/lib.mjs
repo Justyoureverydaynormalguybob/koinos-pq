@@ -106,7 +106,8 @@ const sumsPath = fileURLToPath(new URL("../dist/SHA256SUMS", import.meta.url));
 /** The bytecode that gets uploaded, after checking it against dist/SHA256SUMS. */
 export function loadBytecode() {
   const bytes = new Uint8Array(readFileSync(wasmPath));
-  const line = readFileSync(sumsPath, "utf8").split("\n").find((l) => /\s\*?pqwallet\.wasm$/.test(l));
+  // \r?\n: a Windows checkout has CRLF line endings, and "$" would not match before the \r.
+  const line = readFileSync(sumsPath, "utf8").split(/\r?\n/).find((l) => /\s\*?pqwallet\.wasm$/.test(l));
   if (!line) throw new Error("dist/SHA256SUMS has no entry for pqwallet.wasm");
   const got = hex(sha256(bytes));
   if (!line.startsWith(got)) throw new Error(`dist/pqwallet.wasm sha256 ${got} does not match dist/SHA256SUMS; run npm run build`);
