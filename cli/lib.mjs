@@ -13,7 +13,9 @@ export const NETWORKS = {
     explorer: "https://harbinger.koinosblocks.com",
   },
   mainnet: {
-    rpc: ["https://api.koinos.io/jsonrpc"],
+    // Second node: api.koinos.io intermittently answers "rpc failed, AMQP connection is not open"
+    // (2026-11-04); network() moves on to the next node when one errors.
+    rpc: ["https://api.koinos.io/jsonrpc", "https://api.koinosblocks.com/"],
     rest: "https://api.koinos.io/v1",
     // KOIN moved to this contract (VHP: 12Y5vW6gk8GceH53YfRkRre2Rrcsgw7Naq). The original
     // 15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL still answers name/symbol but every state read on it fails
@@ -40,7 +42,22 @@ export const NATIVE_TAG = 0x01, NATIVE_ENTRY_BYTES = 1 + PK_BYTES + SIG_BYTES; /
 export function network(name = process.env.KOINOS_NETWORK || "testnet") {
   const n = NETWORKS[name];
   if (!n) throw new Error(`unknown network ${name}`);
-  return { name, ...n, provider: new Provider(n.rpc) };
+  return { name, ...n, provider: failoverProvider(n.rpc) };
+}
+
+/** koilib's Provider gives up on the first error by default; this tries each node once per call. */
+function failoverProvider(nodes) {
+  const p = new Provider(nodes);
+  let tries = 0;
+  p.onError = (e, current, next) => {
+    tries += 1;
+    if (tries >= nodes.length) { tries = 0; return true; }
+    console.warn(`${current} failed (${String(e.message || e).slice(0, 100)}); trying ${next}`);
+    return false;
+  };
+  const call = p.call.bind(p);
+  p.call = (method, params) => { tries = 0; return call(method, params); };
+  return p;
 }
 
 export const sha256 = (u8) => Uint8Array.from(createHash("sha256").update(u8).digest());
