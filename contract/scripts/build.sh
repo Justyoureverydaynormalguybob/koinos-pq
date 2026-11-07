@@ -9,6 +9,11 @@ STUBS="$PWD/.stubs"
 # koinos/*.proto and google/protobuf/*.proto imports come from @koinos/proto-as. The sdk-as-cli template
 # copies them into a project as koinos/ and google/ (both gitignored here); a clean checkout has neither.
 PROTO_I="-I . -I node_modules/@koinos/proto-as/assembly"
+# The abi plugin runs its own `protoc assembly/proto/pqwallet.proto` from this directory with no -I, so the
+# imports must exist here too, laid out as the sdk-as-cli template does (koinos/, google/; both gitignored).
+[ -d koinos ] || (cd node_modules/@koinos/proto-as/assembly && find koinos google -name '*.proto') | while read -r p; do
+  mkdir -p "$(dirname "$p")" && cp "node_modules/@koinos/proto-as/assembly/$p" "$p"
+done
 mkdir -p "$STUBS" abi "build/$MODE"
 
 # protoc plugins ship with a `#!/usr/bin/env node` shebang; wrap them in plain sh stubs (Termux).
