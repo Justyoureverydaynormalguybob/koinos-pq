@@ -14,7 +14,7 @@ binaries and the testnet state. This file records every finding and what was don
 | M2 | The CLI uploaded whatever was in the build directory, unhashed, and `lock` makes that irreversible. | All uploads read `dist/pqwallet.wasm` and refuse to proceed unless its sha256 matches `dist/SHA256SUMS`. The digest is printed. |
 | M3 | Between deploy and lock the secp256k1 key could replace the contract. | `deploy --lock` is the documented production path: upload authority is governed by the contract from the first block. The secp256k1 key then matters only until `register`, which is inherent (something has to authorise the bootstrap). The two-step path remains for testing. |
 | L2 | `authorize` wrote state (a counter), which costs mana on every call and fails in read-only contexts. | Counter removed; `authorize` is pure. |
-| L4 | Key file written then chmod'ed (brief window); sponsored-operation scripts silently used another project's issuer key on any network. | File created with mode 0600 in one call; the fallback funding key is only used on testnet, mainnet requires `FUND_WIF` explicitly. |
+| L4 | Key file written then chmod'ed (brief window); sponsored-operation scripts silently used another project's issuer key on any network. | File created with mode 0600 in one call; the funding key always comes from `FUND_WIF`, never from a key file found on disk. |
 | L5 | ACVP vector file not hashed; toolchain versions not recorded. | Versions recorded below; vectors are a smoke test, the formal evidence is the byte-identical upstream reference code plus the noble cross-check. |
 
 ## Verified, no change needed

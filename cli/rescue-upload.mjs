@@ -2,7 +2,7 @@
 // authorize contract cannot process a large transaction (the upload bytecode is ~58 KB).
 // The upload itself is still authorised by the account's secp256k1 key (upload authority not
 // yet overridden), so the transaction carries two signatures: payer's and the account's.
-// Usage: FUND_WIF=<payer wif> node cli/rescue-upload.mjs   (defaults to the koinky-kit issuer key)
+// Usage: FUND_WIF=<payer wif> node cli/rescue-upload.mjs
 import { network, loadKeys, saveKeys, loadBytecode, loadAbi, Signer, Transaction, utils, waitMined, submit, fundingWif } from "./lib.mjs";
 
 const net = network();

@@ -131,13 +131,10 @@ export function loadBytecode() {
   return { bytes, sha256: got };
 }
 
-/** A funded key for sponsored operations: FUND_WIF, or (testnet only) the koinky-kit issuer. */
+/** A funded key for sponsored operations: always FUND_WIF, never a key file found on disk. */
 export function fundingWif(net) {
   if (process.env.FUND_WIF) return process.env.FUND_WIF;
-  if (net.name !== "testnet") throw new Error("set FUND_WIF explicitly on " + net.name);
-  const f = `${process.env.HOME}/koinky-kit/.keys.testnet.json`;
-  if (existsSync(f)) return JSON.parse(readFileSync(f, "utf8")).issuer.wif;
-  throw new Error("set FUND_WIF to a funded testnet key");
+  throw new Error(`set FUND_WIF to a funded ${net.name} key`);
 }
 /** The Koinos ABI file uses kebab-case keys; koilib wants entry_point (number) and read_only. */
 export function loadAbi() {

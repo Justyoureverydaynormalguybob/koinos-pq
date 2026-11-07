@@ -49,7 +49,7 @@ closes that later. Re-running `lock` on a locked account is how you upgrade the 
 
 Until `lock`, the secp256k1 key can still re-upload the contract. That is deliberate: it is the
 recovery path while testing, and it was used twice on testnet (`cli/rescue-upload.mjs`, where
-the issuer account pays the mana and the account key only authorises the upload). After `lock`
+a separate funded account pays the mana and the account key only authorises the upload). After `lock`
 the secp256k1 key is dead weight and the account is post-quantum end to end. The `lock`
 transaction itself carries both signatures, secp256k1 first, because it is the last transaction
 the chain's default rule ever checks for this account.
@@ -58,7 +58,7 @@ Commands (testnet by default; `KOINOS_NETWORK=mainnet` switches):
 
 ```
 npm run keys            # writes .keys.testnet.json (mode 0600) - back it up, it is the account
-npm run fund -- 20      # moves 20 tKOIN from the koinky-kit issuer key into the account
+FUND_WIF=<funded testnet key> npm run fund -- 20   # moves 20 tKOIN into the account
 npm run deploy
 npm run register
 npm run send -- <to> 0.5           # must succeed

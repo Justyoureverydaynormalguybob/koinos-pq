@@ -1,5 +1,5 @@
 // Moves tKOIN from a funded testnet key into the PQ account (so the faucet only ever needs to
-// feed one address). Source key: FUND_WIF env, or the koinky-kit testnet issuer key if present.
+// feed one address). Source key: the FUND_WIF env variable.
 // Usage: node cli/fund.mjs [amount KOIN, default 20]
 import { network, loadKeys, koinContract, Signer, balance, fmtKoin, waitMined, fundingWif } from "./lib.mjs";
 
