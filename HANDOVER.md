@@ -57,7 +57,8 @@ the chain's default rule ever checks for this account.
 Commands (testnet by default; `KOINOS_NETWORK=mainnet` switches):
 
 ```
-npm run keys            # writes .keys.testnet.json (mode 0600) - back it up, it is the account
+npm run keys            # writes .keys.testnet.json, asks for a passphrase - back it up, it is the account
+npm run encrypt-keys    # encrypts an existing key file, or changes its passphrase
 FUND_WIF=<funded testnet key> npm run fund -- 20   # moves 20 tKOIN into the account
 npm run deploy
 npm run register

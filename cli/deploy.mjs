@@ -6,7 +6,7 @@
 import { network, loadKeys, saveKeys, pqContract, loadBytecode, loadAbi, Signer, waitMined, balance, fmtKoin } from "./lib.mjs";
 
 const net = network();
-const k = loadKeys(net.name);
+const k = await loadKeys(net.name);
 const signer = Signer.fromWif(k.account.wif);
 signer.provider = net.provider;
 const address = signer.getAddress();

@@ -4,7 +4,7 @@
 import { network, loadKeys, koinContract, Signer, balance, fmtKoin, waitMined, fundingWif } from "./lib.mjs";
 
 const net = network();
-const k = loadKeys(net.name);
+const k = await loadKeys(net.name);
 const amount = Number(process.argv[2] || "20");
 const src = Signer.fromWif(fundingWif(net));
 src.provider = net.provider;

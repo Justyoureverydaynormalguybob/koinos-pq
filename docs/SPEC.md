@@ -28,13 +28,15 @@ transaction operation, not by another contract. `proof` is an ML-DSA-44 signatur
 over the account's 25-byte address with context `koinos/pqwallet/1/pop` (proof of possession).
 
 ## The rule (`authorizedByTransaction`)
-Let `tx = get_transaction()`, `id = tx.id` (34-byte sha2-256 multihash), `pk = config.public_key`.
-- If `pk` is not exactly 1312 bytes (no key yet): authorised iff some `tx.signatures[i]` of length 65
+Let `id = get_transaction_field("id")` (34-byte sha2-256 multihash), `sigs =
+get_transaction_field("signatures")`, `pk = config.public_key`. A missing or malformed `id` is a
+refusal.
+- If `pk` is not exactly 1312 bytes (no key yet): authorised iff some `sigs[i]` of length 65
   recovers (secp256k1, over `id`) to a public key whose address equals the contract id. This is the
   chain's default rule, re-implemented, so bootstrap transactions keep working.
-- Otherwise: authorised iff some `tx.signatures[i]` of length 2420 satisfies
+- Otherwise: authorised iff some `sigs[i]` of length 2420 satisfies
   `ML-DSA-44.Verify(pk, M = id, sig, ctx = "koinos/pqwallet/1")` (pure mode, FIPS 204 §5.3 with
-  the context prefix `0x00 || len(ctx) || ctx`). On success `verifications += 1`.
+  the context prefix `0x00 || len(ctx) || ctx`).
 `authorize` is pure (no state writes). For `transaction_application` and `contract_upload` the
 rule above decides. For `contract_call` the chain supplies `call = {contract_id, entry_point,
 caller, data}` where `contract_id` is the contract asking (e.g. the token) and `caller` is who

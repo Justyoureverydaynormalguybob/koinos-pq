@@ -12,6 +12,7 @@
     "build": "npm run build:wasm && npm run build:contract",
     "test": "npm run test:wasm && npm run test:contract",
     "keys": "node cli/keys.mjs",
+    "encrypt-keys": "node cli/encrypt-keys.mjs",
     "status": "node cli/status.mjs",
     "fund": "node cli/fund.mjs",
     "deploy": "node cli/deploy.mjs",

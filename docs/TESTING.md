@@ -4,8 +4,11 @@
 - `wasm/test/verify.test.mjs`: NIST ACVP ML-DSA-44 sigVer (external interface, pure):
   15/15 agree, 12 of them must-reject (wrong key, modified message, modified signature,
   invalid hint encoding, out-of-range z, etc.). Noble cross-check: 25 keypairs, 7 assertions each.
-- `contract/scripts/test.sh`: 7/7 as-pect tests against `@koinos/mock-vm` with `dilithium.wasm`
+- `contract/scripts/test.sh`: 10/10 as-pect tests against `@koinos/mock-vm` with `dilithium.wasm`
   sharing the test module's memory, the same layout as on chain.
+- Both run on every push in GitHub Actions (`.github/workflows/test.yml`), together with
+  `sha256sum -c dist/SHA256SUMS` and a check that the merged module imports only
+  `env.invoke_system_call`.
 
 ## Testnet (Harbinger), 2026-10-17
 Full log with every command and receipt: `docs/testnet-run.txt`. Account

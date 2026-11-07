@@ -12,7 +12,7 @@ const mode = process.argv.find((a) => a.startsWith("--")) || "--ok";
 const nativeMode = mode.startsWith("--native");
 const expectOk = mode === "--ok" || mode === "--native";
 const net = network();
-const k = loadKeys(net.name);
+const k = await loadKeys(net.name);
 const pq = pqKeysFromSeed(k.pq.seedHex);
 const from = nativeMode ? pqAddress(pq.publicKey) : k.account.address;
 const value = String(Math.round(Number(amount) * 1e8));

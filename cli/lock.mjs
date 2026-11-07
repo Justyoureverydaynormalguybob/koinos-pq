@@ -6,7 +6,7 @@
 import { network, loadKeys, saveKeys, pqContract, pqKeysFromSeed, loadBytecode, loadAbi, buildTransaction, submit, pqSignTxId, b64url, waitMined, utils, Signer } from "./lib.mjs";
 
 const net = network();
-const k = loadKeys(net.name);
+const k = await loadKeys(net.name);
 const address = k.account.address;
 const pq = pqKeysFromSeed(k.pq.seedHex);
 const c = pqContract(net, address);

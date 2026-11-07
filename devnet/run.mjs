@@ -106,7 +106,7 @@ if (!existsSync(keyFile("devnet"))) {
     account: { address: account.getAddress(), wif: account.getPrivateKey("wif") },
     pq: { scheme: "ML-DSA-44", seedHex, publicKeyHex: hex(pq.publicKey), publicKeySha256: hex(sha256(pq.publicKey)) } });
 }
-const k = loadKeys("devnet");
+const k = await loadKeys("devnet");
 const pq = pqKeysFromSeed(k.pq.seedHex);
 const pqAddr = pqAddress(pq.publicKey);
 const secp = Signer.fromWif(k.account.wif); secp.provider = provider;

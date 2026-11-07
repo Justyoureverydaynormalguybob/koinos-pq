@@ -11,10 +11,10 @@ binaries and the testnet state. This file records every finding and what was don
 | H1 | `set_public_key` could be called by any contract reached by a transaction the holder signed (a dapp could rotate the key to its own, or brick the account with random bytes). | `set_public_key` and `set_allowed_caller` now require `System.getCaller().caller` to be empty, i.e. a direct transaction operation. Mock VM test "refuses nested calls from another contract". |
 | H2 | `authorize` ignored the authorization type and the calling contract, so for `contract_call` any nested contract (DEX, dapp) in a signed transaction could exercise the account's authority. Plain accounts under the AssemblyScript SDK's token rule are refused in that case. | For `contract_call`, a nested caller (`call.caller` non-empty and not the account itself) is refused unless the holder has allow-listed that contract with `set_allowed_caller`. Direct operations, `transaction_application` and `contract_upload` keep the signature rule. Tested. |
 | M1 | No proof of possession: a wrong or unknown key could be registered and, after lock, the account is gone. | `set_public_key` requires `proof`: an ML-DSA-44 signature by the new key over the account's 25-byte address with context `koinos/pqwallet/1/pop`. Tested (missing, wrong-key and wrong-context proofs fail). Exercised on testnet by `register --rotate`. |
-| M2 | The CLI uploaded whatever was in the build directory, unhashed, and `lock` makes that irreversible. | All uploads read `dist/pqwallet.wasm` and refuse to proceed unless its sha256 matches `dist/SHA256SUMS`. The digest is printed. |
+| M2 | The CLI uploaded whatever was in the build directory, unhashed, and `lock` makes that irreversible. | Every upload of this contract (`deploy`, `lock`, `rescue-upload`) reads `dist/pqwallet.wasm` through `loadBytecode()`, which refuses to proceed unless its sha256 matches `dist/SHA256SUMS`; the digest is printed. `upload-for`, which uploads *another* contract this account governs, validates the module and needs the sha256 given or confirmed (R4 below). |
 | M3 | Between deploy and lock the secp256k1 key could replace the contract. | `deploy --lock` is the documented production path: upload authority is governed by the contract from the first block. The secp256k1 key then matters only until `register`, which is inherent (something has to authorise the bootstrap). The two-step path remains for testing. |
 | L2 | `authorize` wrote state (a counter), which costs mana on every call and fails in read-only contexts. | Counter removed; `authorize` is pure. |
-| L4 | Key file written then chmod'ed (brief window); sponsored-operation scripts silently used another project's issuer key on any network. | File created with mode 0600 in one call; the funding key always comes from `FUND_WIF`, never from a key file found on disk. |
+| L4 | Key file written then chmod'ed (brief window); sponsored-operation scripts silently used another project's issuer key on any network. | File created with mode 0600 in one call (on Windows, where no such mode exists, the ACL is cut to the owner with `icacls`, see R2); the funding key always comes from `FUND_WIF`, never from a key file found on disk. |
 | L5 | ACVP vector file not hashed; toolchain versions not recorded. | Versions recorded below; vectors are a smoke test, the formal evidence is the byte-identical upstream reference code plus the noble cross-check. |
 
 ## Verified, no change needed
@@ -58,3 +58,39 @@ binaries and the testnet state. This file records every finding and what was don
   node 24.18.0, assemblyscript 0.27.37, @koinos/sdk-as 1.5.1, koilib 9.4.1, @noble/post-quantum 0.7.1.
 - **No third-party audit.** The verifier is unmodified NIST reference code; the contract and CLI
   have had one independent review (this file) and no professional audit.
+- **Build-tool advisories (R8).** `contract/`'s dev tree (`@koinos/sdk-as` 1.5.1 pulls in as-pect,
+  protobufjs, tar, request and a bundled npm) carries 67 npm advisories, 3 critical, as of
+  2026-11-07. None of it runs on chain or in the CLI; the runtime dependencies (`koilib`,
+  `@noble/post-quantum`, `@noble/hashes`) have none. It is installed with `--ignore-scripts`.
+
+## Review 2026-11-07
+
+A second pass over the whole repository (contract, verifier, CLI, key handling, dependencies, git
+history) with live checks: the mainnet owner account's contract hash equals the sha256 of
+`dist/pqwallet.wasm`, all three overrides are on, and its registered key matches the local seed.
+Nothing was found that moves an account without its current key. The findings are in the tooling
+around it, and all were fixed the same day.
+
+| id | finding | resolution |
+|---|---|---|
+| R1 (high) | `register --rotate` broadcast the new key and wrote the new seed to disk only after the transaction was mined. A crash in between would have left the chain on a key whose seed was never saved, with no secp256k1 fallback after lock. | The new seed is saved as `pendingSeedHex` before anything is broadcast and promoted after the transaction is mined. On start, `register` finishes or discards an interrupted rotation by comparing the on-chain key with the current and pending seeds; `status` reports a pending seed. |
+| R2 (medium) | The key file held the WIF and ML-DSA seed in plain text, and the documented 0600 mode is a no-op on Windows (Node's chmod only toggles the read-only bit, so the file relied on the profile folder's inherited ACL). | Encryption at rest: `keys` asks for a passphrase and `encrypt-keys` converts an existing file or changes the passphrase. The secret fields go into an scrypt (N=2^17, r=8, p=1) + AES-256-GCM blob; the address, public key and deployment notes stay readable. Commands ask for the passphrase, or read `KOINOS_PQ_PASSPHRASE`. On Windows the file's ACL is cut to the owner with `icacls`. A plain-text file still loads, with a warning. |
+| R3 (medium) | `rescue-upload` referenced two identifiers it never imported (it failed with a ReferenceError before doing anything) and read the wasm directly, bypassing the M2 digest check. | Uses `loadBytecode()` like every other upload of this contract. |
+| R4 (medium) | `upload-for` uploaded any file named on the command line, with all three overrides on and no confirmation; the new code's own `authorize` then decides who controls the contract, so a wrong file hands it over permanently. Its usage text advertised a `--keep-flags` option that did not exist. | The module must pass `WebAssembly.validate`, the ABI must parse with methods, and the sha256 must be given with `--sha256 <hex>` or confirmed at the prompt by typing its first 8 characters. Nothing is sent without a terminal or the flag. The phantom option is gone. |
+| R5 (medium) | `send-for` retried on "AMQP" and "invalid json" errors by building and signing a fresh transaction. Such errors can arrive after the node accepted the first one; if it was mined during the 30 s wait, the second transaction had a valid nonce and the transfer went out twice. | `submitOnce()` in `lib.mjs`: a transport error means "maybe accepted", the id is looked for on chain and the same signed bytes are resubmitted, never a new transaction. A pre-acceptance refusal from a busy mempool may rebuild (fresh nonce) only while no ambiguous error has been seen. Used by `send-for`, `upload-for`, `register` and `rescue-upload`. |
+| R6 (low) | `sha256sum -c dist/SHA256SUMS` failed for `pqwallet.abi` on a Windows checkout (autocrlf), and the vendored Dilithium sources were not byte-identical to upstream there for the same reason. The committed blobs were correct. | `.gitattributes`: `dist/* -text`, `dilithium/* text eol=lf`. |
+| R7 (low) | `wasm/test/*.mjs` built paths from `URL.pathname`, which Node on Windows turns into `C:\C:\...`, so `npm test` could not run on the maintainer's machine, and nothing ran tests on push. | `fileURLToPath`; GitHub Actions workflow `.github/workflows/test.yml` runs the verifier tests, the dist checksums, an import check on the merged module, and the mock-VM contract tests. |
+| R8 (low) | 67 npm advisories in the contract's build tooling. | Build-time only; recorded under known limitations above. |
+| R9 (low) | Docs lagged the code: SPEC.md still described a verification counter and a whole-transaction read; TESTING.md said 7 mock-VM tests (there are 10); M2 above claimed every upload was digest-checked. | Fixed in SPEC.md, TESTING.md and the M2/L4 rows above. |
+
+Verified again, no change needed: all 22 vendored Dilithium files and the LICENSE are byte-identical
+to upstream at the commit in `dilithium/PROVENANCE.md`; the committed verifier passes 15/15 ACVP
+vectors, the 25-keypair noble cross-check and the memory fuzz; the merged module imports only
+`env.invoke_system_call`; no key material has ever been committed (`.keys.*` were never tracked);
+the runtime dependencies have no advisories and the lockfiles carry integrity hashes.
+
+Noted, no change: `FUND_WIF` passed inline lands in shell history (a testnet funding key). The
+devnet WIFs in `devnet/make-genesis.mjs` are the public local-koinos dev keys. ML-DSA-44 is NIST
+level 2; the versioned context string leaves room for a level-3 `koinos/pqwallet/2`. There is no
+hybrid mode (secp256k1 and ML-DSA both required), which would hedge an implementation flaw at the
+cost of 65 bytes and a second signature.

@@ -1,10 +1,11 @@
 // Memory-safety fuzz for dilithium.wasm: canaries around the C region, random and malformed inputs,
 // and a measurement of the real stack high-water mark.
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import { ml_dsa44 } from "@noble/post-quantum/ml-dsa.js";
 import assert from "node:assert/strict";
-const here = new URL(".", import.meta.url).pathname;
+const here = fileURLToPath(new URL("./", import.meta.url));
 const memory = new WebAssembly.Memory({ initial: 8 });
 const { instance } = await WebAssembly.instantiate(readFileSync(here + "../dilithium.wasm"), { env: { memory } });
 const { mldsa44_verify } = instance.exports;

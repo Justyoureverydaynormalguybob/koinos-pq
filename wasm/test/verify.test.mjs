@@ -1,10 +1,11 @@
 // Tests wasm/dilithium.wasm: (1) NIST ACVP ML-DSA-44 sigVer vectors, (2) cross-check with @noble/post-quantum.
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import { ml_dsa44 } from "@noble/post-quantum/ml-dsa.js";
 import assert from "node:assert/strict";
 
-const here = new URL(".", import.meta.url).pathname;
+const here = fileURLToPath(new URL("./", import.meta.url));
 const bytes = readFileSync(here + "../dilithium.wasm");
 const memory = new WebAssembly.Memory({ initial: 64 });
 const { instance } = await WebAssembly.instantiate(bytes, { env: { memory } });

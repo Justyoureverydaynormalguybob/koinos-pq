@@ -4,7 +4,7 @@ import { network, loadKeys, pqContract, pqKeysFromSeed, buildTransaction, submit
 const [contract, state] = process.argv.slice(2);
 if (!contract || !["on", "off"].includes(state)) { console.error("usage: node cli/allow.mjs <contract-address> on|off"); process.exit(2); }
 const net = network();
-const k = loadKeys(net.name);
+const k = await loadKeys(net.name);
 const pq = pqKeysFromSeed(k.pq.seedHex);
 const c = pqContract(net, k.account.address);
 const { operation } = await c.functions.set_allowed_caller({ contract, allowed: state === "on" }, { onlyOperation: true });

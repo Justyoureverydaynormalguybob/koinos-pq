@@ -1,0 +1,44 @@
+# Runs on every push and pull request. The verifier job needs only Node. The contract job builds
+# the AssemblyScript contract (protoc, binaryen's wasm-merge, wabt's wasm-validate) and runs the
+# mock-VM tests with the real ML-DSA-44 verifier linked in; dist/ is not rebuilt or compared here,
+# because -O2 output differs between clang versions (see docs/SECURITY.md, reproducibility).
+name: test
+on:
+  push:
+  pull_request:
+
+jobs:
+  verifier:
+    name: verifier (ACVP vectors, noble cross-check, fuzz) and dist checksums
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:wasm
+      - name: dist checksums
+        run: cd dist && sha256sum -c SHA256SUMS
+      - name: merged module imports only the system call
+        run: |
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const m = await WebAssembly.compile(readFileSync("dist/pqwallet.wasm"));
+            const imports = WebAssembly.Module.imports(m).map((i) => i.module + "." + i.name);
+            if (imports.join() !== "env.invoke_system_call") throw new Error("unexpected imports: " + imports);
+            console.log("imports ok:", imports.join());'
+
+  contract:
+    name: contract (Koinos mock VM, real verifier linked)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler binaryen wabt
+      - run: npm ci
+      - run: cd contract && npm ci --ignore-scripts
+      - run: npm run test:contract
