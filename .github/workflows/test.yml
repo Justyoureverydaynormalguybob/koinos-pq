@@ -38,7 +38,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler binaryen wabt
+      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler wabt
+      - name: binaryen 133 (the apt package has no wasm-merge; 133 is the version dist/ was built with)
+        run: |
+          curl -sSfL -o binaryen.tar.gz https://github.com/WebAssembly/binaryen/releases/download/version_133/binaryen-version_133-x86_64-linux.tar.gz
+          tar xzf binaryen.tar.gz
+          echo "$PWD/binaryen-version_133/bin" >> "$GITHUB_PATH"
+      - run: wasm-merge --version && wasm-validate --version && protoc --version
       - run: npm ci
       - run: cd contract && npm ci --ignore-scripts
       - run: npm run test:contract
