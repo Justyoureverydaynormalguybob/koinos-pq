@@ -6,6 +6,9 @@ set -eu
 cd "$(dirname "$0")/.."
 MODE="${1:-release}"
 STUBS="$PWD/.stubs"
+# koinos/*.proto and google/protobuf/*.proto imports come from @koinos/proto-as. The sdk-as-cli template
+# copies them into a project as koinos/ and google/ (both gitignored here); a clean checkout has neither.
+PROTO_I="-I . -I node_modules/@koinos/proto-as/assembly"
 mkdir -p "$STUBS" abi "build/$MODE"
 
 # protoc plugins ship with a `#!/usr/bin/env node` shebang; wrap them in plain sh stubs (Termux).
@@ -18,11 +21,11 @@ command -v protoc >/dev/null || { echo "protoc not found (pkg install protobuf)"
 [ -f ../wasm/dilithium.wasm ] || sh ../wasm/build.sh
 
 echo "[1/5] ABI"
-protoc --plugin=protoc-gen-abi="$STUBS/koinos-abi-proto-gen" --abi_out=abi/ assembly/proto/pqwallet.proto
+protoc $PROTO_I --plugin=protoc-gen-abi="$STUBS/koinos-abi-proto-gen" --abi_out=abi/ assembly/proto/pqwallet.proto
 echo "[2/5] proto -> AssemblyScript"
-protoc --plugin=protoc-gen-as="$STUBS/as-proto-gen" --as_out=. assembly/proto/*.proto
+protoc $PROTO_I --plugin=protoc-gen-as="$STUBS/as-proto-gen" --as_out=. assembly/proto/*.proto
 echo "[3/5] dispatcher (index.ts) with authorize entry point"
-GENERATE_AUTHORIZE_ENTRY_POINT=1 RETURN_BUFFER_SIZE=8192 protoc --plugin=protoc-gen-as="$STUBS/koinos-as-gen" --as_out=assembly/ assembly/proto/pqwallet.proto
+GENERATE_AUTHORIZE_ENTRY_POINT=1 RETURN_BUFFER_SIZE=8192 protoc $PROTO_I --plugin=protoc-gen-as="$STUBS/koinos-as-gen" --as_out=assembly/ assembly/proto/pqwallet.proto
 echo "[4/5] asc ($MODE)"
 node ./node_modules/assemblyscript/bin/asc assembly/index.ts --target "$MODE" --use abort= \
   --disable sign-extension --disable bulk-memory --config asconfig.json
