@@ -94,3 +94,28 @@ devnet WIFs in `devnet/make-genesis.mjs` are the public local-koinos dev keys. M
 level 2; the versioned context string leaves room for a level-3 `koinos/pqwallet/2`. There is no
 hybrid mode (secp256k1 and ML-DSA both required), which would hedge an implementation flaw at the
 cost of 65 bytes and a second signature.
+
+## Outsider pen-test 2026-11-22
+
+Black-box attempt to break the account from the outside, with the public GitHub code but no seed and
+no key. Nothing broke.
+
+**The verifier (the one trust anchor).** 5035 adversarial checks against `wasm/dilithium.wasm` with the
+independent `@noble/post-quantum` implementation as the oracle: context confusion (a proof-of-possession
+signature under the transaction context `koinos/pqwallet/1` and vice versa), transaction-id substitution,
+key replay across accounts, all-zero and all-0xff signatures, structured mutations across the challenge,
+`z` and hint regions, and 4000 random multi-bit mutations. Zero false-accepts, zero divergences from
+noble. Kept as a regression test: `wasm/test/adv-verify.test.mjs`, wired into `npm run test:wasm`.
+
+**The deployed account, live on Harbinger.** Against the locked pen-test account
+`1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t` (ML-DSA key registered, ~67 tKOIN), an attacker with a freshly
+generated ML-DSA key — one that never had the seed — tried (1) a drain (transfer to the attacker,
+signed by the attacker's key over the real transaction id) and (2) a takeover (`set_public_key`
+rotating the account to the attacker's key, with a valid proof of possession). The node rejected both
+with `account … has not authorized transaction`. The rejections happen before mining, so nothing is
+charged and no chain state changes; the balance was untouched. Kept as a repeatable negative test:
+`cli/attack-outsider.mjs` (`npm run attack`), which refuses mainnet without `ALLOW_MAINNET=1`.
+
+The one thing an outsider cannot do is forge an ML-DSA-44 signature, and every path that tries to get
+around that — a verifier false-accept, context/key/message confusion, a signature with no valid key —
+is closed. The wallet's own web and local-attacker surface is covered in the wallet repo's SECURITY.md.
