@@ -6,7 +6,7 @@
   "description": "Post-quantum (ML-DSA-44) account contract for Koinos, with testnet CLI",
   "scripts": {
     "build:wasm": "sh wasm/build.sh",
-    "test:wasm": "node wasm/test/verify.test.mjs && node wasm/test/fuzz.test.mjs",
+    "test:wasm": "node wasm/test/verify.test.mjs && node wasm/test/fuzz.test.mjs && node wasm/test/adv-verify.test.mjs",
     "build:contract": "cd contract && sh scripts/build.sh release",
     "test:contract": "node contract/scripts/fixtures.mjs && cd contract && sh scripts/test.sh",
     "build": "npm run build:wasm && npm run build:contract",
