@@ -20,7 +20,8 @@
     "send": "node cli/send.mjs",
     "lock": "node cli/lock.mjs",
     "allow": "node cli/allow.mjs",
-    "rescue": "node cli/rescue-upload.mjs"
+    "rescue": "node cli/rescue-upload.mjs",
+    "attack": "node cli/attack-outsider.mjs"
   },
   "license": "MIT",
   "dependencies": {
