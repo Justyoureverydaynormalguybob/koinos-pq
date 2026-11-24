@@ -119,3 +119,48 @@ charged and no chain state changes; the balance was untouched. Kept as a repeata
 The one thing an outsider cannot do is forge an ML-DSA-44 signature, and every path that tries to get
 around that — a verifier false-accept, context/key/message confusion, a signature with no valid key —
 is closed. The wallet's own web and local-attacker surface is covered in the wallet repo's SECURITY.md.
+
+## Outsider attack re-run and widened, 2026-11-23
+
+`cli/attack-outsider.mjs` (`npm run attack`) now carries thirteen attacks instead of two, takes several
+victim addresses, and separates three outcomes: refused (exit 0), accepted or the account changed
+(exit 1), and no verdict because the node did not answer (exit 2), so a dead node can no longer read as a
+pass. After the run it compares the account's balance, registered key, contract info and allowed list
+with what they were before.
+
+1. Drain signed with a fresh ML-DSA-44 key.
+2. Takeover: `set_public_key` to the attacker's key with a valid proof of possession.
+3. `set_allowed_caller` putting the attacker's address on the allowed list.
+4. Drain with no signature.
+5. Drain signed with a secp256k1 key.
+6. Drain carrying the native-format entry (0x01, public key, signature) of the attacker's key.
+7. Drain carrying a real signature of the victim's, lifted from its last transaction on the chain.
+8. Drain behind five junk signatures and the attacker's (six entries), and behind six (seven entries,
+   one more than the contract's buffer holds: it must fail closed, and does, with "return buffer is not
+   large enough").
+9. The burn sandwich: allow PoB, burn the victim's KOIN into VHP for the attacker, forbid PoB.
+10. to 13. With `ATTACKER_WIF` set, the attacker pays the mana with a funded account of its own and
+    signs validly for itself: transfer out of the victim, `set_public_key`, `set_allowed_caller`, and a
+    burn of the victim's KOIN through PoB.
+
+**Harbinger**, the locked account `1FqXVbjZnMo2cUNj56LNCrc8R22RWDmq1t`: cases 1 to 9, ten attempts, all
+refused; 67 tKOIN, the key and the allowed list unchanged. Harbinger's head had not moved since
+09:10 UTC that day, but its mempool still judged every transaction. Cases 10 to 13 need a funded
+attacker and were not run there.
+
+**Private devnet**, three accounts made from one seed (numbers 0, 1 and 2, each with its own key):
+cases 1 to 12 against each, 33 attempts, all refused, nothing changed. With the attacker paying, the
+token contract answered "account 'from' has not authorized transfer" and the account contract "not
+authorized". Case 7 was skipped (the devnet has no history API) and 9 and 13 do not apply (no PoB
+there). The wallet's own `scripts/devnet-accounts.mjs` passed beside it: account 1 cannot be moved by
+the wallet's first key or by account 2's.
+
+Not run against mainnet; the script refuses it without `ALLOW_MAINNET=1`. Read only, the mainnet account
+that has burned twice has PoB off its allowed list.
+
+A reviewer also re-ran `npm run test:wasm` (ACVP 15/15, 25 keypairs against noble, the fuzz run, 5,035
+adversarial checks with no false accept) and read `Pqwallet.ts` `authorize` again for the allowed list:
+with a contract on it, only calls arriving through that contract stop being refused outright, and they
+still need the account's own signature on the transaction. Leaving PoB allowed for good would let any
+contract reached by a transaction the owner signs burn the account's KOIN into VHP at an address of its
+choosing, which is the allow-list scope already recorded above.
