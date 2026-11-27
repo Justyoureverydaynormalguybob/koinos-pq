@@ -8,10 +8,20 @@ import { network, loadKeys, saveKeys, pqContract, pqKeysFromSeed, loadBytecode, 
 const net = network();
 const k = await loadKeys(net.name);
 const address = k.account.address;
+if (k.pq.pendingSeedHex) {
+  // Lock removes the last fallback, so the key file and the chain must agree first.
+  console.error("a key rotation is not settled; run `npm run register` first, then lock");
+  process.exit(1);
+}
 const pq = pqKeysFromSeed(k.pq.seedHex);
 const c = pqContract(net, address);
 const info = (await c.functions.get_info()).result;
 if (!info.key_registered) { console.error("register the ML-DSA key first"); process.exit(1); }
+const onchain = utils.decodeBase64url((await c.functions.get_public_key()).result.value);
+if (!Buffer.from(onchain).equals(Buffer.from(pq.publicKey))) {
+  console.error("the registered key is not the key of the current seed in the key file; run `npm run register` (it finds a kept seed that matches) before locking");
+  process.exit(1);
+}
 const { bytes: bytecode, sha256: digest } = loadBytecode();
 console.log(`bytecode sha256 ${digest} (verified against dist/SHA256SUMS)`);
 const operation = {

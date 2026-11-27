@@ -2,13 +2,44 @@
 
 ## Offline (reproducible with `npm test`)
 - `wasm/test/verify.test.mjs`: NIST ACVP ML-DSA-44 sigVer (external interface, pure):
-  15/15 agree, 12 of them must-reject (wrong key, modified message, modified signature,
-  invalid hint encoding, out-of-range z, etc.). Noble cross-check: 25 keypairs, 7 assertions each.
+  15/15 agree, 12 of them must-reject. The file's own reasons for those 12 are: modified message
+  (3), modified signature, commitment (3), modified signature, z (3), modified signature, hint (3).
+  It has no "wrong key" vector; an earlier version of this line said it had. The wrong-key case is
+  covered by the noble cross-check instead: 25 keypairs, 7 assertions each (valid, flipped
+  signature bit, changed message, wrong context, wrong key, short signature, short key).
+- `wasm/test/fuzz.test.mjs` (memory safety, canaries around the C region) and
+  `wasm/test/adv-verify.test.mjs` (5,035 false-accept checks against noble).
+- **All three verifier tests run twice**: against `wasm/dilithium.wasm`, and with `--merged`
+  against `dist/pqwallet.wasm`, the merged file that is actually uploaded (`npm run
+  test:wasm:merged`, part of `npm run test:wasm`). `wasm-merge` keeps the verifier's exports in
+  the merged module, so the same vectors reach the function as it sits in the deployed bytes, at
+  the same memory addresses. The loader (`wasm/test/load.mjs`) refuses a `dist/pqwallet.wasm`
+  that is not the one `dist/SHA256SUMS` names, and fails the test if the verifier ever reaches
+  the module's one import, the system call. Until 2026-11-27 these tests loaded only
+  `wasm/dilithium.wasm`.
 - `contract/scripts/test.sh`: 10/10 as-pect tests against `@koinos/mock-vm` with `dilithium.wasm`
   sharing the test module's memory, the same layout as on chain.
-- Both run on every push in GitHub Actions (`.github/workflows/test.yml`), together with
-  `sha256sum -c dist/SHA256SUMS` and a check that the merged module imports only
-  `env.invoke_system_call`.
+- `npm run test:cli`, offline: `cli/test/rotation.test.mjs` (no sequence of events removes a seed
+  from the key file; the interrupted-rotation case from the 2026-11-27 review),
+  `cli/test/register-flow.test.mjs` (`register.mjs` itself against a made-up node on 127.0.0.1
+  with a key file in a temporary folder: a rotation the node holds back and the user runs again,
+  one it refuses and later accepts, one whose nonce another transaction took, a key on chain that
+  no seed in the file belongs to),
+  `cli/test/refusals.test.mjs` (only the chain's own refusal texts count as "refused") and
+  `cli/test/attack-judge.test.mjs` (the attack script against a made-up node on 127.0.0.1: a
+  node that answers with an error page, drops the connection or says "AMQP connection is not
+  open" gives exit 2, never a pass).
+- `npm run build:contract` builds the contract into `contract/build/` and fails unless the result
+  is byte-identical to the committed `dist/`. It never writes to `dist/`; only `npm run
+  update-dist` does. On 2026-11-27 a clean rebuild on the phone (Termux, clang 21.1.8, binaryen
+  133, protoc 36.2, node 24.18.0) reproduced all three files: `pqwallet.wasm` `8b1175cd…3861a`,
+  `pqwallet.abi` `0cdd1b59…0566`, `dilithium.wasm` `82ac3b06…1c74`.
+- All of it runs on every push in GitHub Actions (`.github/workflows/test.yml`), together with
+  `sha256sum -c dist/SHA256SUMS`, a check that the merged module imports only
+  `env.invoke_system_call`, and (contract job) the same byte-for-byte comparison of the contract
+  built on the runner with the committed `dist/`. The runner does not rebuild `dilithium.wasm`
+  from C, because `-O2` output depends on the clang version; the committed file is used, so the
+  merged module depends only on the pinned AssemblyScript compiler and binaryen 133.
 
 ## Testnet (Harbinger), 2026-10-17
 Full log with every command and receipt: `docs/testnet-run.txt`. Account
@@ -31,7 +62,9 @@ Full log with every command and receipt: `docs/testnet-run.txt`. Account
 | send 0.5 tKOIN after lock, ML-DSA-44 only | | 9289024 | mined |
 | send with secp256k1 after lock | | | rejected: "has not authorized transaction" |
 
-End state: `get_info` reports key registered, 7 successful verifications; the on-chain key hash
+End state: `get_info` reports key registered (the contract of that first day also kept a count of
+successful verifications, 7 at this point; the counter was removed in the security review the same
+day, L2, so `get_info` no longer reports one); the on-chain key hash
 `4f4583ba0afdbbe67409ea6ff4a8dd8f9bf0e18cf933b0d4d7ecbd6401d71709` matches the local seed.
 The secp256k1 key for this account can no longer do anything.
 

@@ -12,11 +12,12 @@ import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import { ml_dsa44 } from "@noble/post-quantum/ml-dsa.js";
 import assert from "node:assert/strict";
+import { loadVerifier, target } from "./load.mjs";
 
 const here = fileURLToPath(new URL("./", import.meta.url));
-const memory = new WebAssembly.Memory({ initial: 8 });
-const { instance } = await WebAssembly.instantiate(readFileSync(here + "../dilithium.wasm"), { env: { memory } });
-const { mldsa44_verify } = instance.exports;
+// With --merged the same checks run against dist/pqwallet.wasm, the file that is uploaded.
+const { mldsa44_verify, memory } = await loadVerifier({ pages: 8 });
+console.log(`verifier under test: ${target}`);
 const mem = () => new Uint8Array(memory.buffer);
 const IN = { sig: 0x1000, pk: 0x2000, msg: 0x3000, ctx: 0x8000 };
 const put = (off, u8) => { mem().set(u8, off); return off; };

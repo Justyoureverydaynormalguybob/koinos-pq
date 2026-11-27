@@ -60,15 +60,25 @@ Commands (testnet by default; `KOINOS_NETWORK=mainnet` switches):
 npm run keys            # writes .keys.testnet.json, asks for a passphrase - back it up, it is the account
 npm run encrypt-keys    # encrypts an existing key file, or changes its passphrase
 FUND_WIF=<funded testnet key> npm run fund -- 20   # moves 20 tKOIN into the account
-npm run deploy
-npm run register
+npm run deploy -- --lock # uploads the contract with all three authorities its own, from the first block
+npm run register        # stores the ML-DSA-44 key; the last thing the secp256k1 key ever signs
 npm run send -- <to> 0.5           # must succeed
 npm run send -- <to> 0.5 --ecdsa   # must be rejected (secp256k1 no longer counts)
 npm run send -- <to> 0.5 --bad-sig # must be rejected
 npm run send -- <to> 0.5 --no-sig  # must be rejected
-npm run lock
-npm run status
+npm run status          # must show overrides: call=true tx=true upload=true
 ```
+
+Use `deploy -- --lock` for any account that will hold something. Plain `npm run deploy` followed
+later by `npm run lock` is the testing variant described above: until `lock` runs, the old
+secp256k1 key, whose public key is on the chain, can replace the contract and take the account.
+`register` and `status` print a warning for as long as an account is in that state.
+
+Rotating the key (`npm run register -- --rotate`): the new seed and its signed transaction are
+written to the key file before anything is sent, and no command ever deletes a seed. If a rotation
+is interrupted, run `npm run register` again; it sends the same signed transaction again or, when
+the chain shows the rotation can no longer land, moves the unused seed to a kept list
+(`retiredSeeds`). Back the key file up again after every rotation.
 
 ## 4. Security review
 
@@ -125,7 +135,15 @@ a transaction signature entry `0x01 || public key || signature` (3733 bytes) aut
 from the key, with no contract. Chain tests pass (50/50) and `docs/devnet-run.txt` is the proof on a private
 chain: `devnet/` holds the compose file, genesis and the script that deploys KOIN, mints, and runs the
 transfer plus negative cases (`docker compose -f devnet/docker-compose.yml up -d`, `node devnet/run.mjs`).
-The branch is committed locally and not yet pushed; the next step is the pull request.
+The branch is on GitHub (github.com/Justyoureverydaynormalguybob/koinos-chain, branch `ml-dsa-44`).
+
+**Correction, 2026-11-27.** Earlier text here and in `docs/PR-koinos-chain.md` called the native
+change "no protocol change". That was wrong, and an outside reviewer caught it: today's nodes reject
+a transaction carrying the new 3733-byte entry, nodes with the change accept it, so the first such
+block would split the network. The change has to ship as a new thunk that nothing calls, and be
+switched on by a governance proposal so that every node changes at the same block. The branch as
+pushed still edits the existing rule in place. It must be reworked that way, and the devnet run
+repeated, before the pull request is opened. `docs/PR-koinos-chain.md` has the details at its top.
 
 Before starting the native work read `docs/THROUGHPUT.md`: it measures whether post-quantum signatures
 slow the chain down (verification: no; bytes: 6-13x bigger; transactions per block today: unchanged,
@@ -147,5 +165,10 @@ Needs: node 20+, clang with the wasm32 target, lld, binaryen (`wasm-merge`), wab
 npm install
 (cd contract && npm install --ignore-scripts)
 npm run build && npm test
-sha256sum -c dist/SHA256SUMS
 ```
+
+`npm run build` builds into `contract/build/` and then compares the result with the committed
+`dist/`, byte for byte. It fails if they differ and never writes to `dist/`. (Until 2026-11-27 it
+copied its output over `dist/` and rewrote the checksums, so the old `sha256sum -c dist/SHA256SUMS`
+line here could not fail.) `dist/` changes only with `npm run update-dist`, which is a deliberate
+act: `dist/pqwallet.wasm` is the file that gets uploaded and the file koinos-pq-core embeds.

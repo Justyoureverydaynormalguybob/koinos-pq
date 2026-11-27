@@ -7,6 +7,15 @@ Implemented and proven on a private devnet the same day (koinos-chain fork, bran
 `docs/NATIVE-PLAN.md` status, `docs/devnet-run.txt`): the B1 subset below (inline key, default authority
 only, no enum change) is working code with tests; items 1, 3, 4 and 5 are the B2 follow-up.
 
+**Correction, 2026-11-27.** The B1 subset is itself a consensus change and needs the governance step
+in item 5, not only B2. Today's default authority rule rejects a transaction with a 3733-byte
+signature entry ("unexpected signature length"); with the change it is accepted; so nodes with and
+without it would disagree on the first block that contains one. B1 therefore has to ship as a new
+thunk that nothing calls, with the `check_authority` system call pointed at it by a governance
+proposal. A new thunk needs a new id in `koinos.chain.system_call_id` (koinos-proto), so "no enum
+change" holds for the `dsa` enum but not for the list of thunks. The branch as pushed edits the
+existing rule in place and has to be reworked first; see the top of `docs/PR-koinos-chain.md`.
+
 ## Why
 `pqwallet` proves a post-quantum account works inside the current protocol, but it verifies in
 interpreted WASM and needs a contract per account. A native digital-signature type lets *every*
@@ -17,7 +26,8 @@ The security review of the contract route (2026-10-18) adds a second reason: nod
 contract cannot remove.
 
 - Signatures are not covered by the transaction id, and an authority contract can only check them
-  in interpreted WASM, about 6M ticks per ML-DSA-44 check.
+  in interpreted WASM, about 2.3 M to 2.8 M ticks per ML-DSA-44 check (a transfer runs two and
+  costs 6.1 M in all; the arithmetic is in THROUGHPUT.md section 4).
 - Anyone can send nodes transactions that name a `pqwallet` account as payer and carry junk
   signatures. Each forces up to six such checks, and none is charged: a transaction whose payer
   authority fails is rejected, not included. No funds are at risk, but the work is free to cause.
@@ -25,7 +35,8 @@ contract cannot remove.
   than one post-quantum signer, but not to zero. One check in interpreted WASM is the floor for any
   authority contract.
 - Native verification removes it at the root. The node charges three secp256k1 recoveries
-  (88,890 ticks) for an ML-DSA-44 check, roughly 70 times less than the contract route pays; the
+  (88,890 ticks) for an ML-DSA-44 check, roughly 30 times less than the contract route pays
+  (corrected 2026-11-27; this said 70, from counting a whole transfer as one check); the
   measured cost is 2.6 recoveries with the reference C, 0.64 with AVX2.
 - Per byte a spammer sends, a junk ML-DSA-44 entry (3,733 bytes for about 2.6 recoveries of work)
   costs a node less than a junk secp256k1 signature does today (65 bytes for one). So the native
@@ -50,7 +61,9 @@ Details: https://github.com/Justyoureverydaynormalguybob/koinos-pq-wallet/blob/m
 4. **koilib / Kondor**: `Signer` variant producing 2420-byte signatures from a 32-byte seed
    (`@noble/post-quantum` `ml_dsa44`); JSON encoding unchanged (base64url in `signatures`).
 5. **Governance**: node release first, then a proposal flipping the `verify_signature` system
-   call to the new thunk (60% of blocks over the two-week vote).
+   call to the new thunk (60% of blocks over the two-week vote). The same applies to the default
+   authority rule (`check_authority`) in B1: a new thunk, dormant until a proposal points the
+   system call at it.
 
 ## Later: consensus
 Proof-of-burn eligibility uses a secp256k1 ECVRF and blocks are ECDSA-signed. No standard

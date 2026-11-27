@@ -13,7 +13,7 @@
 import { readFileSync } from "node:fs";
 import {
   network, loadKeys, pqKeysFromSeed, buildTransaction, submitOnce, pqSignTxId, b64url,
-  contractMetadata, hex, sha256, utils, askLine, sleep,
+  contractMetadata, hex, sha256, utils, askLine, sleep, warnPendingRotation,
 } from "./lib.mjs";
 
 const args = process.argv.slice(2);
@@ -26,6 +26,7 @@ if (!contract || !wasmFile || !abiFile || (expected !== null && !/^[0-9a-f]{64}$
 }
 const net = network();
 const k = await loadKeys(net.name);
+warnPendingRotation(k);
 const pq = pqKeysFromSeed(k.pq.seedHex);
 const bytes = new Uint8Array(readFileSync(wasmFile));
 const abiText = readFileSync(abiFile, "utf8");

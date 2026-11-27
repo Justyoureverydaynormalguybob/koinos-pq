@@ -145,9 +145,27 @@ the compute ceiling to roughly level with it. It does not lower the number of tr
 block can hold today for the transactions people actually send.
 
 For comparison, the contract route already live on testnet (`docs/testnet-run.txt`) costs
-6.11 M ticks per transfer because the verifier runs in interpreted WASM: about 5 M ticks, or
-roughly 9 ms, for one verification. Native verification is about 100 times cheaper than that
-(section 3), which is the whole point of phase B.
+6.11 M ticks per transfer because the verifier runs in interpreted WASM. A transfer runs two
+verifications (payer check, and the token asking the account), and one of them costs about 2.3 M
+to 2.8 M ticks, roughly 4 to 5 ms at the 0.1 s / 57.5 M calibration. The native charge is 88,890
+ticks (section 3), so native verification is about 30 times cheaper (26 to 32), which is the
+whole point of phase B.
+
+Where 2.3 M to 2.8 M comes from, all from receipts in `docs/testnet-run.txt`:
+
+| receipts | arithmetic | one verification |
+|---|---|---|
+| `lock` 3,267,435 against the upgrade 6,034,172. Both re-upload the contract. `lock` runs one in-contract verification and settles the upload under the chain's secp256k1 rule; the upgrade runs two. | 6,034,172 − 3,267,435 = 2,766,737, plus the one secp256k1 recovery `lock` paid and the upgrade did not (29,630) | about 2.80 M |
+| key rotation 8,375,374: three verifications (payer, `set_public_key`'s own check, proof of possession) | 8,375,374 ÷ 3, counting everything else in the transaction as verification | at most 2.79 M |
+| transfer 6,110,092: two verifications plus the transfer itself, which costs between 409,273 (the devnet's plain transfer) and about 1.5 M (a typical mainnet transfer) | (6,110,092 − 409,273) ÷ 2 and (6,110,092 − 1,500,000) ÷ 2 | 2.85 M down to 2.31 M |
+
+Each figure includes the cost of calling `authorize` and reading the transaction's id and
+signatures, not only the lattice arithmetic, and the two uploads carried slightly different
+bytecode, so these are estimates that agree with each other rather than one measurement.
+88,890 into 2.31 M is 26; into 2.80 M is 32.
+
+*Corrected 2026-11-27 after an outside review. This paragraph used to say about 5 M ticks, 9 ms
+and 100 times: it had counted a whole transfer, which runs two verifications, as one.*
 
 ## 5. How to keep it fast (do these in the design, not later)
 

@@ -4,7 +4,7 @@
 //   default         contract route: the account at k.account.address runs pqwallet, signature = raw 2420 bytes
 //   --native        native route (koinos-chain fork, phase B1): the account is the ML-DSA key's own address,
 //                   signature entry = 0x01 || public key || signature over the tx id with context "koinos/tx/1"
-import { network, loadKeys, koinContract, pqKeysFromSeed, buildTransaction, submit, pqSignTxId, pqVerifyTxId, pqSignTxIdNative, pqAddress, nativeEntry, b64url, waitMined, Signer, fmtKoin, balance } from "./lib.mjs";
+import { network, loadKeys, koinContract, pqKeysFromSeed, buildTransaction, submit, pqSignTxId, pqVerifyTxId, pqSignTxIdNative, pqAddress, nativeEntry, b64url, waitMined, Signer, fmtKoin, balance, warnPendingRotation } from "./lib.mjs";
 
 const [to, amount] = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 if (!to || !amount) { console.error("usage: node cli/send.mjs <to> <amount KOIN> [--bad-sig|--no-sig|--ecdsa|--native|--native-bad-sig]"); process.exit(2); }
@@ -13,6 +13,7 @@ const nativeMode = mode.startsWith("--native");
 const expectOk = mode === "--ok" || mode === "--native";
 const net = network();
 const k = await loadKeys(net.name);
+if (!nativeMode) warnPendingRotation(k);
 const pq = pqKeysFromSeed(k.pq.seedHex);
 const from = nativeMode ? pqAddress(pq.publicKey) : k.account.address;
 const value = String(Math.round(Number(amount) * 1e8));

@@ -5,9 +5,16 @@ Replace an account's authority rule with ML-DSA-44 (FIPS 204) signature verifica
 Koinos's per-address `authorize` override. No chain change.
 
 ## Deployment
-`upload_contract` to the account's own address with
-`authorizes_call_contract = true`, `authorizes_transaction_application = true`,
-and (after bootstrap) `authorizes_upload_contract = true`. ABI: `dist/pqwallet.abi`.
+`upload_contract` to the account's own address with `authorizes_call_contract = true`,
+`authorizes_transaction_application = true` and `authorizes_upload_contract = true`, all three in
+that one upload. This is the production path (`npm run deploy -- --lock`, and what the wallet's
+activation does). ABI: `dist/pqwallet.abi`.
+
+A two-step variant exists for testing only: upload with `authorizes_upload_contract = false`
+(`npm run deploy`), and set it later (`npm run lock`). In between, the account's secp256k1 key can
+still replace the contract, and with it the registered ML-DSA-44 key. That key's public key is on
+the chain from the upload transaction on, so an account left in this state is not post-quantum.
+`register` and `status` say so for as long as it lasts.
 
 ## State
 Space 0, object `config_object { bytes public_key = 1; }`.
@@ -75,6 +82,27 @@ The contract never calls `get_transaction()`. It reads `get_transaction_field("i
   `require_authority`), i.e. two ML-DSA verifications. Measured on testnet: compute 6.11M of the
   287.5M limit (2.1%), rc_used 39.5M (0.39 KOIN of mana), network 2,668 bytes. A legacy
   (secp256k1) bootstrap call measured compute 1.07M.
+- **What the 16 KiB buffer rules out** (`SYSTEM_BUFFER_BYTES = 16384` in `Pqwallet.ts`). Every
+  system call the contract makes returns its answer into this one buffer, and a call whose answer
+  does not fit fails with "return buffer is not large enough", which ends `authorize` with a
+  refusal. It fails closed: no funds are at risk, but some valid transactions can never be
+  authorised by a `pqwallet` account.
+  - *Signatures.* `authorize` reads the whole `signatures` list of the transaction, everybody's
+    entries, not only this account's. Six ML-DSA-44 signatures are 14,520 bytes and fit, with
+    about 1,800 bytes to spare for other entries (roughly 25 secp256k1 signatures). Seven are
+    16,940 bytes and do not. So a transaction co-signed by seven or more ML-DSA-44 accounts, or
+    one whose signatures add up to more than about 16,300 bytes, cannot be authorised by any
+    `pqwallet` account in it. The pen-test's case 8b relies on exactly this.
+  - *Arguments of an authority check.* For a `contract_call` check the chain passes `authorize`
+    the `data` that the asking contract handed to `check_authority`. With `@koinos/sdk-as` 1.5.1
+    `requireAuthority` passes that contract's own call arguments by default. If they are larger
+    than about 16 KB, `authorize` cannot read its arguments and the check fails every time. A
+    token transfer's arguments are under 100 bytes; this matters only for a contract that asks for
+    the account's authority inside a call with very large arguments.
+  - *Why it is not simply raised.* The value is compiled into `dist/pqwallet.wasm`, which accounts
+    on chain already run, and the buffer is allocated on every call, so a larger one costs every
+    transaction something. It has not been measured. Raising it is a new contract version: measure
+    the cost per call on testnet first, then re-upload account by account.
 - Mixed signature lists: when a transaction also triggers the chain's *default* secp256k1 rule
   (only the final `lock` does), the 65-byte signature must come first: the default loop stops at
   the first match but aborts with "unexpected signature length" on a 2420-byte entry.
@@ -85,8 +113,13 @@ The contract never calls `get_transaction()`. It reads `get_transaction_field("i
 - Replay: the signed message is the tx id, which commits to chain id, nonce, payer, rc_limit and
   the operation Merkle root. The context string separates these signatures from any other use
   of the same key.
-- Lockout: a wrong `public_key` registered by mistake locks the account unless upload authority
-  is still secp256k1. Hence `lock` is a separate, last step.
+- Lockout: `set_public_key` demands a proof of possession, so a key nobody holds cannot be
+  registered. What can still lock an account for good is losing the seed after upload authority
+  is the contract's; no secp256k1 fallback exists then, by design. The seed backup is the only
+  recovery. The CLI never deletes a seed from the key file (`cli/rotation.mjs`).
+- The window before `lock`: in the two-step testing path the secp256k1 key can replace the
+  contract until `lock`. Production uses the one-step upload above, where that window does not
+  exist.
 - Key reuse: the ML-DSA public key is published on first registration, which is fine for a
   post-quantum scheme (that is the point).
 - Verifier provenance: upstream commit recorded in `dilithium/PROVENANCE.md`; ACVP vectors in

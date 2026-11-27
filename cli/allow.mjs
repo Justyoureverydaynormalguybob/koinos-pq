@@ -1,10 +1,11 @@
 // Allows or forbids a contract (e.g. a DEX) to act for this account from inside a nested call.
 // Usage: node cli/allow.mjs <contract-address> on|off
-import { network, loadKeys, pqContract, pqKeysFromSeed, buildTransaction, submit, pqSignTxId, b64url, waitMined } from "./lib.mjs";
+import { network, loadKeys, pqContract, pqKeysFromSeed, buildTransaction, submit, pqSignTxId, b64url, waitMined, warnPendingRotation } from "./lib.mjs";
 const [contract, state] = process.argv.slice(2);
 if (!contract || !["on", "off"].includes(state)) { console.error("usage: node cli/allow.mjs <contract-address> on|off"); process.exit(2); }
 const net = network();
 const k = await loadKeys(net.name);
+warnPendingRotation(k);
 const pq = pqKeysFromSeed(k.pq.seedHex);
 const c = pqContract(net, k.account.address);
 const { operation } = await c.functions.set_allowed_caller({ contract, allowed: state === "on" }, { onlyOperation: true });

@@ -1,6 +1,7 @@
 // Shared helpers for the koinos-pq CLI (testnet by default).
 import { readFileSync, writeFileSync, existsSync, chmodSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { createHash, randomBytes, scryptSync, createCipheriv, createDecipheriv } from "node:crypto";
 import { createInterface } from "node:readline";
 import { execFileSync } from "node:child_process";
@@ -72,18 +73,26 @@ export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // Key file
 //
 // { network, createdAt, account: {address, wif}, pq: {scheme, seedHex, publicKeyHex, publicKeySha256,
-//   previousSeedHex?, pendingSeedHex?, pendingSince?}, contractId?, deployedTx?, lockedUpload? }
+//   previousSeedHex?, pendingSeedHex?, pendingSince?, pendingTx? {id, nonce, payer, tx},
+//   retiredSeeds? [{seedHex, publicKeySha256, retiredAt, reason}]}, contractId?, deployedTx?, lockedUpload? }
+//
+// No command ever deletes a seed from this file. A seed that stops being current or pending moves
+// to previousSeedHex or retiredSeeds (see cli/rotation.mjs for why).
 //
 // With a passphrase the secret fields (SECRET_PATHS) are moved into `encrypted`, an scrypt +
 // AES-256-GCM blob, and everything else stays readable, so the address and public key can be
 // checked without the passphrase. A plain-text file still loads, with a warning.
 // ---------------------------------------------------------------------------------------------
-const SECRET_PATHS = [["account", "wif"], ["pq", "seedHex"], ["pq", "previousSeedHex"], ["pq", "pendingSeedHex"]];
+const SECRET_PATHS = [["account", "wif"], ["pq", "seedHex"], ["pq", "previousSeedHex"], ["pq", "pendingSeedHex"], ["pq", "retiredSeeds"]];
 const KDF = { N: 1 << 17, r: 8, p: 1 }; // about a second on a laptop, 128 MiB
 const KDF_MAX_N = 1 << 20; // refuse absurd parameters from a tampered file
 const passphrases = new Map(); // network -> passphrase in use by this process ("" = plain text)
 
-export function keyFile(net) { return fileURLToPath(new URL(`../.keys.${net}.json`, import.meta.url)); }
+/** `.keys.<network>.json` in the repository folder, or the file KOINOS_PQ_KEY_FILE names (the tests use that, to stay away from real key files). */
+export function keyFile(net) {
+  if (process.env.KOINOS_PQ_KEY_FILE) return resolve(process.env.KOINOS_PQ_KEY_FILE);
+  return fileURLToPath(new URL(`../.keys.${net}.json`, import.meta.url));
+}
 
 /** Reads a passphrase without echo, or KOINOS_PQ_PASSPHRASE when it is set (for scripts). */
 export async function askPassphrase(label) {
@@ -213,6 +222,24 @@ export function pqKeysFromSeed(seedHex) {
   const k = ml_dsa44.keygen(seed);
   if (k.publicKey.length !== PK_BYTES) throw new Error("unexpected public key size");
   return k;
+}
+
+/** { hex, sha256 } of a seed's public key, the shape cli/rotation.mjs works with. */
+export function keyOfSeed(seedHex) {
+  const pk = pqKeysFromSeed(seedHex).publicKey;
+  return { hex: hex(pk), sha256: hex(sha256(pk)) };
+}
+/**
+ * Says so when a key rotation has not been settled. Any other transaction from the account uses the
+ * nonce the rotation is waiting for, which cancels it; that is harmless (the seed is kept) but
+ * should not happen by accident.
+ */
+export function warnPendingRotation(keys) {
+  if (!keys.pq || !keys.pq.pendingSeedHex) return false;
+  const t = keys.pq.pendingTx;
+  console.warn(`warning: a key rotation started ${keys.pq.pendingSince || "earlier"} is not settled${t ? ` (tx ${t.id}, nonce ${t.nonce})` : ""}. ` +
+    "A transaction sent now takes its nonce and cancels it. To finish it instead, stop and run: npm run register");
+  return true;
 }
 
 /** Signs a Koinos transaction id (34-byte multihash) with ML-DSA-44 under our context. */

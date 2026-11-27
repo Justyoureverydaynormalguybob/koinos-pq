@@ -1,24 +1,38 @@
-# Runs on every push and pull request. The verifier job needs only Node. The contract job builds
-# the AssemblyScript contract (protoc, binaryen's wasm-merge, wabt's wasm-validate) and runs the
-# mock-VM tests with the real ML-DSA-44 verifier linked in; dist/ is not rebuilt or compared here,
-# because -O2 output differs between clang versions (see docs/SECURITY.md, reproducibility).
+# Runs on every push and pull request.
+#
+# verifier: needs only Node. Runs the verifier tests twice: against wasm/dilithium.wasm and against
+#   dist/pqwallet.wasm, the merged file that is actually uploaded. Also the CLI's offline tests.
+# contract: builds the AssemblyScript contract (protoc, binaryen's wasm-merge, wabt's wasm-validate),
+#   runs the mock-VM tests with the real ML-DSA-44 verifier linked in, and then checks that the
+#   contract built here is byte-identical to the committed dist/. That comparison is possible because
+#   the C verifier (wasm/dilithium.wasm, whose -O2 output depends on the clang version) is committed
+#   and NOT rebuilt here: the merged module depends only on the pinned AssemblyScript compiler and
+#   binaryen 133. Rebuilding dilithium.wasm itself needs clang 21.1.8 (docs/SECURITY.md).
+#
+# Actions are pinned to a commit, not a tag: a tag can be moved to other code, a commit cannot.
 name: test
 on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   verifier:
-    name: verifier (ACVP vectors, noble cross-check, fuzz) and dist checksums
+    name: verifier (ACVP vectors, noble cross-check, fuzz, adversarial), CLI tests and dist checksums
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run test:wasm
+      - name: verifier tests, on dilithium.wasm and on the merged dist/pqwallet.wasm
+        run: npm run test:wasm
+      - name: CLI tests (key rotation bookkeeping, how the attack script judges a run; offline)
+        run: npm run test:cli
       - name: dist checksums
         run: cd dist && sha256sum -c SHA256SUMS
       - name: merged module imports only the system call
@@ -31,20 +45,26 @@ jobs:
             console.log("imports ok:", imports.join());'
 
   contract:
-    name: contract (Koinos mock VM, real verifier linked)
+    name: contract (Koinos mock VM, real verifier linked) and dist reproducibility
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
       - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler wabt
       - name: binaryen 133 (the apt package has no wasm-merge; 133 is the version dist/ was built with)
         run: |
           curl -sSfL -o binaryen.tar.gz https://github.com/WebAssembly/binaryen/releases/download/version_133/binaryen-version_133-x86_64-linux.tar.gz
+          # the sha256 GitHub lists for this release file, read on 2026-11-27; a changed download stops the job
+          echo "2dc9c7813f5375db93d96ead4b78222fcc3e2677bbb832297af4797782a37489  binaryen.tar.gz" | sha256sum -c -
           tar xzf binaryen.tar.gz
           echo "$PWD/binaryen-version_133/bin" >> "$GITHUB_PATH"
       - run: wasm-merge --version && wasm-validate --version && protoc --version
       - run: npm ci
       - run: cd contract && npm ci --ignore-scripts
       - run: npm run test:contract
+      - name: the contract built here is byte-identical to the committed dist/
+        run: npm run build:contract
+      - name: the build changed nothing that is committed
+        run: git diff --exit-code -- dist contract/abi wasm/dilithium.wasm

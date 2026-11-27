@@ -120,6 +120,10 @@ export class Pqwallet {
       const sig = sigs[i];
       if (sig.length != 65) continue;
       const pub = System.recoverPublicKey(sig, id);
+      // Never taken: on a failed recovery the SDK exits the contract (checkErrorCode in
+      // systemCalls.ts) and does not return null, so a malformed 65-byte entry aborts this
+      // legacy path (docs/SECURITY.md, L3). The line stays because removing it changes the bytes
+      // of dist/pqwallet.wasm, which accounts on chain already run.
       if (pub == null) continue;
       const addr = Crypto.addressFromPublicKey(pub!);
       if (Arrays.equal(addr, this.contractId)) return true;

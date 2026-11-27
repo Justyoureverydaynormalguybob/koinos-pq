@@ -1,15 +1,15 @@
-// Tests wasm/dilithium.wasm: (1) NIST ACVP ML-DSA-44 sigVer vectors, (2) cross-check with @noble/post-quantum.
+// Tests the verifier: (1) NIST ACVP ML-DSA-44 sigVer vectors, (2) cross-check with @noble/post-quantum.
+// Run as is for wasm/dilithium.wasm, with --merged for dist/pqwallet.wasm (the file that is uploaded).
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import { ml_dsa44 } from "@noble/post-quantum/ml-dsa.js";
 import assert from "node:assert/strict";
+import { loadVerifier, target } from "./load.mjs";
 
 const here = fileURLToPath(new URL("./", import.meta.url));
-const bytes = readFileSync(here + "../dilithium.wasm");
-const memory = new WebAssembly.Memory({ initial: 64 });
-const { instance } = await WebAssembly.instantiate(bytes, { env: { memory } });
-const { mldsa44_verify, mldsa44_sizes } = instance.exports;
+const { mldsa44_verify, mldsa44_sizes, memory, sha256: fileSha } = await loadVerifier({ pages: 64 });
+console.log(`verifier under test: ${target} (sha256 ${fileSha.slice(0, 16)}…)`);
 const sizes = mldsa44_sizes();
 assert.equal(sizes >>> 16, 2420, "signature size");
 assert.equal(sizes & 0xffff, 1312, "public key size");

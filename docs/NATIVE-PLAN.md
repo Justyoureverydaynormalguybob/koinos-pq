@@ -5,7 +5,28 @@ vendored, `check_authority` branch, 50/50 chain tests pass incl. the new `ml_dsa
 devnet proved it end to end (`docs/devnet-run.txt`): a KOIN transfer signed only with a 3733-byte entry was
 mined, seven negative cases were rejected, the secp256k1 path is unchanged, and a mixed transaction works.
 Measured: +118,555 ticks and +3,669 bytes per transfer against secp256k1. Remaining B1 item: open the PR on
-koinos/koinos-chain (branch not pushed yet). Then B2.
+koinos/koinos-chain (the branch is on GitHub now). Then B2.
+
+**Correction 2026-11-27, read before opening the PR.** B1 as built changes the existing
+`check_authority` thunk in place, and this plan called that "no protocol change". It is a consensus
+change: a node without it rejects a transaction carrying a 3733-byte entry (`recover_public_key`
+asserts 65 bytes, "unexpected signature length"), a node with it accepts it, and the first block
+with such a transaction splits the two. `check_authority` is also in `THUNK_REGISTER_GENESIS`, whose
+comment forbids changes after genesis. The fix is the mechanism the node already has:
+
+1. Leave the genesis `check_authority` thunk byte-for-byte alone.
+2. Add the new rule as a new thunk in `THUNK_REGISTER` (the non-genesis list). Thunk ids are values
+   of `koinos.chain.system_call_id` (`koinos-proto`, `koinos/chain/system_call_ids.proto`), so this
+   needs one new enum value there: B1 is no longer a one-repo change.
+3. Nothing calls the new thunk at release. A governance proposal with
+   `set_system_call_operation { call_id: check_authority, target: { thunk_id: <new id> } }` switches
+   every node at the same block. `apply_set_system_call_operation` already checks that the thunk
+   exists and that system authority approved it.
+4. Tests to add: before the switch a 3733-byte entry is still rejected; after it, accepted; the
+   65-byte path gives identical results through both thunks. Repeat the devnet run that way.
+
+Wherever the text below says "add a branch to the default loop" or "no protobuf change", read it
+with this correction. Found by an outside review (koinos-pq-wallet issue 1, GitHub user interfecto).
 
 *Start here on the laptop. Written 2026-10-17 on the phone session that built and tested the
 contract route (see HANDOVER.md, docs/TESTING.md). This file is the handoff: it holds every fact
@@ -23,7 +44,7 @@ the proof-of-burn lottery are phase B2/B3 (design first, see docs/NATIVE-PROPOSA
 - koinos-proto-cpp  (generated C++ for the protos; B2)
 - koinos-crypto-cpp (secp256k1 wrappers, multihash; a natural home for an `mldsa` helper, optional)
 
-## Design for B1 (minimal, no protobuf change)
+## Design for B1 (minimal; see the 2026-11-27 correction above: it does need one new thunk id in koinos-proto)
 A second kind of entry in `transaction.signatures`:
 
     0x01 || public_key (1312 bytes) || signature (2420 bytes)      = 3733 bytes
@@ -131,7 +152,9 @@ proposal to governance with the dsa enum in B2.
 
 ## Reality checks
 - The default authority thunk runs for every transaction on the network; a bug there halts the
-  chain. Keep the 65-byte path byte-for-byte unchanged and gate the new branch on exact length.
+  chain. Keep the genesis thunk byte-for-byte unchanged, put the new rule in a new thunk, and gate
+  its new branch on exact length. Accepting a transaction that today's nodes reject is a consensus
+  change whatever its size: it goes live by governance, not by a node release.
 - No one should run this fork as a mainnet validator; it is for a devnet and a PR.
 - ML-DSA verify is native here, so the compute charge is a policy number, not a measurement of
   interpreted ticks; document how it was chosen.
